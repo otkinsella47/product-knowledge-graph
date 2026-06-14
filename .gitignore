@@ -1,1 +1,10 @@
 .ai-private/
+.DS_Store
+node_modules/
+dist/
+coverage/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
