@@ -50,3 +50,26 @@ Manual Review & Testing
 ```
 
 > Build the simplest version that enables learning.
+
+## Development Setup
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the local development server:
+
+```bash
+npm run dev
+```
+
+Run validation checks:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
