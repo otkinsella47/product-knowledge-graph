@@ -108,4 +108,24 @@ describe('lineage semantics', () => {
       },
     ]);
   });
+
+  it('supports the main decision lineage review questions at the model level', () => {
+    expect(getPossiblePreviousEntityTypes('decision')).toEqual([
+      'insight',
+      'experiment',
+    ]);
+    expect(getPossiblePreviousEntityTypes('experiment')).toEqual(['solution']);
+    expect(getPossibleNextEntityTypes('decision')).toEqual(['outcome']);
+
+    expect(describeRelationship('insight', 'informs', 'decision')).toBeDefined();
+    expect(
+      describeRelationship('experiment', 'informs', 'decision'),
+    ).toBeDefined();
+    expect(
+      describeRelationship('solution', 'validated_by', 'experiment'),
+    ).toBeDefined();
+    expect(
+      describeRelationship('decision', 'influences', 'outcome'),
+    ).toBeDefined();
+  });
 });
