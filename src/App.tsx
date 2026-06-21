@@ -1,11 +1,14 @@
 import { type FormEvent, useMemo, useState } from 'react';
-import { type Entity } from './domain/graph';
+import { type Entity, type Relationship } from './domain/graph';
 import { createGraphEngine, type GraphEngine } from './domain/graphEngine';
 import { createInMemoryGraphRepository } from './domain/graphRepository';
 import {
   type EntityType,
+  type RelationshipType,
   entityTypeConfigs,
   entityTypes,
+  getAllowedRelationshipsForSource,
+  relationshipTypeConfigs,
 } from './domain/ontology';
 
 type EntityFormState = {
@@ -14,10 +17,20 @@ type EntityFormState = {
   description: string;
 };
 
+type RelationshipFormState = {
+  relationship: RelationshipType | '';
+  targetEntityId: string;
+};
+
 const emptyFormState: EntityFormState = {
   type: 'research',
   title: '',
   description: '',
+};
+
+const emptyRelationshipFormState: RelationshipFormState = {
+  relationship: '',
+  targetEntityId: '',
 };
 
 function App() {
@@ -27,15 +40,40 @@ function App() {
   );
 
   const [entities, setEntities] = useState<Entity[]>([]);
+  const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [selectedEntityId, setSelectedEntityId] = useState<string | undefined>();
   const [editingEntityId, setEditingEntityId] = useState<string | undefined>();
   const [formState, setFormState] = useState<EntityFormState>(emptyFormState);
+  const [relationshipFormState, setRelationshipFormState] =
+    useState<RelationshipFormState>(emptyRelationshipFormState);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<EntityType | 'all'>('all');
   const [error, setError] = useState<string | undefined>();
+  const [relationshipError, setRelationshipError] = useState<string | undefined>();
 
   const selectedEntity = entities.find((entity) => entity.id === selectedEntityId);
   const editingEntity = entities.find((entity) => entity.id === editingEntityId);
+  const selectedEntityRelationships = selectedEntity
+    ? relationships.filter(
+        (relationship) =>
+          relationship.sourceEntityId === selectedEntity.id ||
+          relationship.targetEntityId === selectedEntity.id,
+      )
+    : [];
+  const allowedRelationshipRules = selectedEntity
+    ? getAllowedRelationshipsForSource(selectedEntity.type)
+    : [];
+  const selectedRelationshipRule = allowedRelationshipRules.find(
+    (allowedRelationship) =>
+      allowedRelationship.relationship === relationshipFormState.relationship,
+  );
+  const validTargetEntities = selectedRelationshipRule
+    ? entities.filter(
+        (entity) =>
+          entity.id !== selectedEntity?.id &&
+          entity.type === selectedRelationshipRule.target,
+      )
+    : [];
 
   const filteredEntities = useMemo(() => {
     const normalisedSearchQuery = searchQuery.trim().toLowerCase();
@@ -123,14 +161,71 @@ function App() {
   }
 
   function handleDelete(entityId: string) {
-    graphEngine.deleteEntity(entityId);
-    setEditingEntityId((currentEntityId) =>
-      currentEntityId === entityId ? undefined : currentEntityId,
+    try {
+      graphEngine.deleteEntity(entityId);
+      setEditingEntityId((currentEntityId) =>
+        currentEntityId === entityId ? undefined : currentEntityId,
+      );
+      setFormState((currentFormState) =>
+        editingEntityId === entityId ? emptyFormState : currentFormState,
+      );
+      setError(undefined);
+      syncEntities();
+    } catch {
+      setError('Remove relationships before deleting this entity.');
+    }
+  }
+
+  function handleSelectEntity(entityId: string) {
+    setSelectedEntityId(entityId);
+    setRelationshipFormState(emptyRelationshipFormState);
+    setRelationshipError(undefined);
+  }
+
+  function handleRelationshipSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!selectedEntity) {
+      setRelationshipError('Select an entity before adding a relationship.');
+      return;
+    }
+
+    if (!relationshipFormState.relationship) {
+      setRelationshipError('Choose a relationship type.');
+      return;
+    }
+
+    if (!relationshipFormState.targetEntityId) {
+      setRelationshipError('Choose a target entity.');
+      return;
+    }
+
+    try {
+      const relationship = graphEngine.createRelationship({
+        type: relationshipFormState.relationship,
+        sourceEntityId: selectedEntity.id,
+        targetEntityId: relationshipFormState.targetEntityId,
+      });
+
+      setRelationships((currentRelationships) => [
+        ...currentRelationships,
+        relationship,
+      ]);
+      setRelationshipFormState(emptyRelationshipFormState);
+      setRelationshipError(undefined);
+    } catch {
+      setRelationshipError('That relationship is not valid for these entities.');
+    }
+  }
+
+  function handleDeleteRelationship(relationshipId: string) {
+    graphEngine.deleteRelationship(relationshipId);
+    setRelationships((currentRelationships) =>
+      currentRelationships.filter(
+        (relationship) => relationship.id !== relationshipId,
+      ),
     );
-    setFormState((currentFormState) =>
-      editingEntityId === entityId ? emptyFormState : currentFormState,
-    );
-    syncEntities();
+    setRelationshipError(undefined);
   }
 
   return (
@@ -151,6 +246,7 @@ function App() {
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               <Metric label="Entities" value={entities.length} />
+              <Metric label="Links" value={relationships.length} />
               <Metric
                 label="Types"
                 value={new Set(entities.map((entity) => entity.type)).size}
@@ -307,7 +403,7 @@ function App() {
                         className={`block w-full px-4 py-4 text-left hover:bg-slate-50 ${
                           selectedEntityId === entity.id ? 'bg-cyan-50' : ''
                         }`}
-                        onClick={() => setSelectedEntityId(entity.id)}
+                        onClick={() => handleSelectEntity(entity.id)}
                         type="button"
                       >
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -373,6 +469,166 @@ function App() {
                     </div>
                   </dl>
 
+                  <section className="mt-6 border-t border-slate-200 pt-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <h4 className="text-base font-semibold text-slate-950">
+                        Relationships
+                      </h4>
+                      <p className="text-sm text-slate-500">
+                        {selectedEntityRelationships.length} connected
+                      </p>
+                    </div>
+
+                    {selectedEntityRelationships.length > 0 ? (
+                      <ul className="mt-3 divide-y divide-slate-200 rounded-md border border-slate-200">
+                        {selectedEntityRelationships.map((relationship) => {
+                          const sourceEntity = entities.find(
+                            (entity) => entity.id === relationship.sourceEntityId,
+                          );
+                          const targetEntity = entities.find(
+                            (entity) => entity.id === relationship.targetEntityId,
+                          );
+
+                          if (!sourceEntity || !targetEntity) {
+                            return null;
+                          }
+
+                          const isOutgoing =
+                            relationship.sourceEntityId === selectedEntity.id;
+
+                          return (
+                            <li
+                              className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                              key={relationship.id}
+                            >
+                              <div>
+                                <p className="text-sm font-medium text-slate-950">
+                                  {formatRelationshipStatement(
+                                    sourceEntity,
+                                    relationship,
+                                    targetEntity,
+                                  )}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  {isOutgoing ? 'Outgoing' : 'Incoming'} link
+                                </p>
+                              </div>
+                              <button
+                                className="w-fit rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                                onClick={() =>
+                                  handleDeleteRelationship(relationship.id)
+                                }
+                                type="button"
+                              >
+                                Remove
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="mt-3 rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
+                        No relationships yet for this entity.
+                      </p>
+                    )}
+
+                    <form
+                      aria-label="Add relationship"
+                      className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3"
+                      onSubmit={handleRelationshipSubmit}
+                    >
+                      <h5 className="text-sm font-semibold text-slate-950">
+                        Add outgoing relationship
+                      </h5>
+                      <div className="mt-3 grid gap-3">
+                        <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
+                          Relationship
+                          <select
+                            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-100"
+                            onChange={(event) =>
+                              setRelationshipFormState({
+                                relationship: event.target
+                                  .value as RelationshipType,
+                                targetEntityId: '',
+                              })
+                            }
+                            value={relationshipFormState.relationship}
+                          >
+                            <option value="">Choose relationship</option>
+                            {allowedRelationshipRules.map((allowedRelationship) => (
+                              <option
+                                key={`${allowedRelationship.relationship}-${allowedRelationship.target}`}
+                                value={allowedRelationship.relationship}
+                              >
+                                {entityTypeConfigs[allowedRelationship.source].label}{' '}
+                                {
+                                  relationshipTypeConfigs[
+                                    allowedRelationship.relationship
+                                  ].label
+                                }{' '}
+                                {entityTypeConfigs[allowedRelationship.target].label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
+                          Target entity
+                          <select
+                            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-100 disabled:bg-slate-100"
+                            disabled={!relationshipFormState.relationship}
+                            onChange={(event) =>
+                              setRelationshipFormState(
+                                (currentFormState) => ({
+                                  ...currentFormState,
+                                  targetEntityId: event.target.value,
+                                }),
+                              )
+                            }
+                            value={relationshipFormState.targetEntityId}
+                          >
+                            <option value="">
+                              {selectedRelationshipRule
+                                ? `Choose ${
+                                    entityTypeConfigs[
+                                      selectedRelationshipRule.target
+                                    ].label
+                                  }`
+                                : 'Choose relationship first'}
+                            </option>
+                            {validTargetEntities.map((entity) => (
+                              <option key={entity.id} value={entity.id}>
+                                {entity.title}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        {selectedRelationshipRule &&
+                        validTargetEntities.length === 0 ? (
+                          <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                            Create a{' '}
+                            {entityTypeConfigs[selectedRelationshipRule.target].label}{' '}
+                            entity before adding this relationship.
+                          </p>
+                        ) : null}
+
+                        {relationshipError ? (
+                          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            {relationshipError}
+                          </p>
+                        ) : null}
+
+                        <button
+                          className="rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-cyan-800"
+                          type="submit"
+                        >
+                          Add relationship
+                        </button>
+                      </div>
+                    </form>
+                  </section>
+
                   <div className="mt-6 flex flex-wrap gap-3">
                     <button
                       className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
@@ -437,6 +693,18 @@ function formatTimestamp(timestamp: string) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(timestamp));
+}
+
+function formatRelationshipStatement(
+  sourceEntity: Entity,
+  relationship: Relationship,
+  targetEntity: Entity,
+) {
+  return `${entityTypeConfigs[sourceEntity.type].label} ${
+    relationshipTypeConfigs[relationship.type].label
+  } ${entityTypeConfigs[targetEntity.type].label}: ${sourceEntity.title} -> ${
+    targetEntity.title
+  }`;
 }
 
 export default App;
