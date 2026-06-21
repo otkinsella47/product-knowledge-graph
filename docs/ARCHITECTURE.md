@@ -2,21 +2,22 @@
 
 ## Purpose
 
-This document describes the high-level architecture for Product Knowledge Graph.
+The architecture should support the project North Star:
 
-The architecture should remain lightweight and technology-agnostic until the core product value is validated.
+> Improve product decisions through explainable knowledge lineage.
 
-## Architectural Principles
+The system should remain simple in v0.1 while leaving room for AI reasoning, configurable ontologies and governance in later versions.
 
-- Relationship-first modelling
-- Simple before sophisticated
-- Technology-agnostic until needed
-- Incremental evolution
-- Clear separation of responsibilities
-- Support for future AI-assisted reasoning
-- Avoid premature infrastructure decisions
+## Architectural principles
 
-## Conceptual Architecture
+- Preserve knowledge lineage.
+- Make reasoning explainable.
+- Keep the ontology fixed in v0.1.
+- Avoid coupling the system to one product methodology.
+- Prefer simple architecture until value is validated.
+- Leave room for future governance and ontology flexibility.
+
+## Conceptual architecture
 
 ```text
 User Interface
@@ -28,97 +29,141 @@ Knowledge Graph Engine
 Persistence Layer
 ```
 
-## Layers
+A future version may add an AI reasoning layer.
 
-### User Interface
+```text
+AI Reasoning Layer
+↓
+Application Layer
+↓
+Knowledge Graph Engine
+↓
+Persistence Layer
+```
 
-The user interface allows users to create, view, connect and navigate product knowledge.
+## User Interface
 
-Responsibilities may include:
+The user interface should help users create, connect and navigate product knowledge.
 
-- Creating nodes
-- Creating relationships
-- Viewing connected concepts
-- Navigating the graph
-- Supporting lightweight workflows
-- Making graph concepts understandable to users
+Responsibilities:
 
-### Application Layer
+- create entities
+- create relationships
+- show related concepts
+- support lineage navigation
+- help users understand why a decision exists
+- avoid exposing unnecessary graph complexity
 
-The application layer coordinates product workflows and use cases.
+The UI should make the graph useful without requiring users to think like graph database experts.
 
-Responsibilities may include:
+## Application Layer
 
-- Handling user actions
-- Enforcing business rules
-- Coordinating graph operations
-- Preparing data for the UI
-- Managing validation logic
+The application layer coordinates product workflows and business rules.
 
-### Knowledge Graph Engine
+Responsibilities:
 
-The knowledge graph engine is responsible for graph-specific behaviour.
+- handle user actions
+- validate allowed relationships
+- coordinate graph operations
+- prepare data for the UI
+- support lineage queries
+- prepare structured context for AI reasoning
 
-Responsibilities may include:
+## Knowledge Graph Engine
 
-- Managing nodes
-- Managing relationships
-- Validating relationship types
-- Traversing the graph
-- Querying connected concepts
-- Supporting future reasoning workflows
+The graph engine manages entities, relationships and traversal.
 
-### Persistence Layer
+Responsibilities:
 
-The persistence layer stores and retrieves the graph and supporting artefacts.
+- create and update nodes
+- create and update relationships
+- validate relationship types
+- traverse connected knowledge
+- retrieve lineage paths
+- identify missing or weak connections
+- support future ontology configuration
+
+The graph engine is a product capability, not necessarily a specific graph database.
+
+## Persistence Layer
+
+The persistence layer stores and retrieves graph data and supporting artefacts.
 
 It may store:
 
-- Nodes
-- Relationships
-- Metadata
-- User-generated artefacts
-- Version history
-- Context documents
+- entities
+- relationships
+- metadata
+- user-generated content
+- version history
+- context documents
 
 The persistence layer is an abstraction. It does not imply a specific database technology.
 
-Possible future implementations could include:
+Possible future implementations:
 
-- Relational database with graph-like tables
-- Graph database
-- Document database
-- Hybrid graph, document and vector storage
+- relational database with graph-like tables
+- graph database
+- document database
+- hybrid graph, document and vector storage
 
-No specific persistence technology should be assumed until the project has enough evidence to justify the choice.
+The project should not commit to a heavy persistence choice before the core product value is validated.
 
-## Future Direction: AI Reasoning Layer
+## AI Reasoning Layer
 
-A future architecture may include an AI reasoning layer.
+A future AI reasoning layer should reason over connected product knowledge.
 
-Potential responsibilities:
+Responsibilities may include:
 
-- Summarising connected knowledge
-- Identifying missing links
-- Detecting contradictions
-- Suggesting related entities
-- Helping users reason from evidence to decisions
+- summarising connected context
+- explaining recommendations
+- identifying missing links
+- detecting contradictions
+- highlighting weakly supported decisions
+- tracing recommendations back to source knowledge
+- suggesting relevant entities or relationships
 
-This should not be overbuilt in v0.1.
+This should not be overbuilt before useful lineage workflows exist.
 
-## Current Architectural Stance
+## Trust and governance
 
-For v0.1, the architecture should prioritise:
+Product knowledge may include sensitive research, personal data, strategy and commercial information.
 
-- Fast learning
-- Simple implementation
-- Easy refactoring
-- Clear domain concepts
-- Minimal infrastructure
+The architecture should remain open to:
 
-## Open Questions
+- workspace ownership
+- entity ownership
+- classification metadata
+- permission-aware AI reasoning
+- auditability
+- explainability
+- configurable governance rules
 
-- What persistence approach best supports the first useful prototype?
-- How should graph traversal be exposed to users?
-- How much structure should be enforced at the application layer?
-- Which AI reasoning capabilities are useful enough to build?
+These are future concerns, not v0.1 implementation requirements.
+
+## v0.1 architecture stance
+
+v0.1 should prioritise:
+
+- simple implementation
+- fast iteration
+- clear domain concepts
+- relationship modelling
+- lineage navigation
+- easy refactoring
+
+It should avoid:
+
+- enterprise architecture
+- premature graph database commitments
+- complex permission models
+- generic AI orchestration
+- deep configurability before validation
+
+## Open questions
+
+- What persistence model best supports the first useful prototype?
+- How should users navigate lineage without visual clutter?
+- Which relationship rules should be enforced in v0.1?
+- What minimum metadata is needed for future governance?
+- Which AI reasoning use case should be tested first?

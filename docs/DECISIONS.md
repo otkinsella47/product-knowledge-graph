@@ -2,251 +2,156 @@
 
 ## Purpose
 
-This document records important project decisions and the reasoning behind them.
+This file records project decisions that shape the product, architecture and development approach.
 
-It should help future humans and AI agents understand why the project evolved in a particular direction.
+It should help a future contributor or AI agent understand the current direction without needing the full conversation history.
 
-## Decision Criteria
+## Decision criteria
 
-Architecture and product decisions should consider:
+Product and architecture decisions should be evaluated against:
 
-- User value
-- Development effort
-- Maintenance cost
-- Context cost
-- Long-term development velocity
-- Learning value
+- North Star alignment
+- decision quality
+- knowledge lineage
+- explainability
+- user value
+- development effort
+- maintenance cost
+- context cost
+- future governance extensibility
 
-Avoid decisions that significantly increase complexity without clear evidence of benefit.
+## ADR-001: Repository-first context strategy
 
----
+### Decision
 
-# ADR-001: Repository-First Context Strategy
+Stable project knowledge belongs in repository documentation.
 
-## Decision
+### Rationale
 
-Stable project knowledge should live in repository documentation rather than being repeatedly included in prompts.
+AI-assisted development works better when durable context is inspectable in the repo rather than repeatedly copied into prompts.
 
-## Context
+### Consequences
 
-The project uses ChatGPT for planning and Codex for implementation. AI agents lose context between sessions, so repeatedly explaining the same vision, domain model and workflow creates prompt bloat and increases the risk of inconsistency.
+Core context lives in `docs/`.
 
-## Alternatives Considered
+Personal workflow notes live in `.ai-private/`.
 
-### Keep context in prompts
+## ADR-002: Personal AI workflow files remain private
 
-Pros:
+### Decision
 
-- Flexible
-- Easy to change quickly
+Personal prompting and Codex workflow notes should not be committed.
 
-Cons:
+### Consequences
 
-- Repetitive
-- Token-heavy
-- Easy for context to drift
-- Harder for new agents to onboard
+Use `.ai-private/` for personal workflow files and ignore it in Git.
 
-### Store stable context in repository documentation
+## ADR-003: Prototype-first, validation-first development
 
-Pros:
+### Decision
 
-- Durable
-- Self-documenting
-- Easier for agents to inspect
-- Reduces repeated prompting
-- Improves consistency
+v0.1 should prioritise learning and validation over production-grade architecture.
 
-Cons:
+### Consequences
 
-- Requires documentation maintenance
+Prefer small vertical slices, simple implementation and fast user feedback.
 
-## Consequences
+## ADR-004: Relationship modelling precedes feature depth
 
-The repository should include durable context files such as:
+### Decision
 
-- PRODUCT_VISION.md
-- PROJECT_OVERVIEW.md
-- DOMAIN_MODEL.md
-- ARCHITECTURE.md
-- DECISIONS.md
-- ROADMAP.md
-- AGENT_GUIDE.md
+The product should first prove that connected product knowledge and lineage are useful.
 
----
+### Consequences
 
-# ADR-002: Personal AI Workflow Files Remain Private
+Features should be designed around relationships and lineage rather than generic document or artefact creation.
 
-## Decision
+## ADR-005: Domain model as conceptual foundation
 
-Project context should be public in `docs/`, while personal AI workflow files should remain private in `.ai-private/`.
+### Decision
 
-## Context
+The domain model acts as the shared language for the product, architecture and AI reasoning.
 
-Some information explains the project. Other information explains how Owen personally works with Codex and ChatGPT.
+### Consequences
 
-These should not be mixed.
+Changes to core terminology should be reflected in `DOMAIN_MODEL.md`.
 
-## Reasoning
+## ADR-006: Insights as first-class knowledge objects
 
-Project context belongs in the repository because future contributors and AI agents need it.
+### Decision
 
-Personal workflow preferences do not need to be shared publicly.
+Insights should be modelled as reusable entities.
 
-## Consequences
+### Consequences
 
-Use:
+Insights can originate from research, experiments or outcomes and inform multiple opportunities or decisions.
 
-```text
-docs/
-```
+## ADR-007: Knowledge lineage as core capability
 
-for public project context.
+### Decision
 
-Use:
+Knowledge lineage is a core product capability.
 
-```text
-.ai-private/
-```
+### Consequences
 
-for personal workflow files.
+Lineage is created by traversing relationships. It should not be modelled as a separate entity in v0.1.
 
-Add `.ai-private/` to `.gitignore`.
+## ADR-008: AI reasoning over AI generation
 
----
+### Decision
 
-# ADR-003: Prototype-First, Validation-First Development
+The primary AI focus is reasoning over connected product knowledge.
 
-## Decision
+### Consequences
 
-Product Knowledge Graph v0.1 should prioritise learning and validation over production-grade architecture.
+AI work should prioritise explanations, gap detection, recommendation rationale and decision support over generic artefact generation.
 
-## Context
+## ADR-009: Fixed ontology for v0.1
 
-The project is a side project exploring whether graph-based product knowledge management is valuable.
+### Decision
 
-The core risk is not technical scalability. The core risk is whether the concept is useful.
+v0.1 should use an opinionated fixed ontology.
 
-## Reasoning
+### Consequences
 
-A validation-first approach supports:
+The first version should prioritise validation and clarity over configurability.
 
-- Faster iteration
-- Lower maintenance
-- Less over-engineering
-- More user feedback
-- Better learning
+## ADR-010: Flexible ontology as long-term direction
 
-## Consequences
+### Decision
 
-Prefer:
+Future versions should support configurable ontologies and relationship types.
 
-- Working software
-- Simple solutions
-- Fast iteration
-- Lightweight prototypes
+### Consequences
 
-Avoid:
+The architecture should avoid decisions that make ontology flexibility difficult later.
 
-- Enterprise infrastructure
-- Premature optimisation
-- Overly complex architecture
-- Heavy abstractions before validation
+## ADR-011: Trust and governance as future architectural concerns
 
----
+### Decision
 
-# ADR-004: Knowledge Graph Modelling Precedes Feature Development
+Trust, ownership, classification, permission-aware reasoning and auditability are future architectural concerns.
 
-## Decision
+### Consequences
 
-The domain model and graph relationships should guide feature development.
+They are not v0.1 implementation priorities, but the system should avoid choices that block them.
 
-## Context
+## ADR-012: North Star is explainable knowledge lineage
 
-The central idea of the product is that product knowledge is relational.
+### Decision
 
-If the project starts by building generic documents, boards or CRUD screens, it risks recreating existing tools rather than exploring the graph-based insight.
+The project should optimise for improving product decisions through explainable knowledge lineage.
 
-## Reasoning
+### Consequences
 
-The graph is not a technical implementation detail. It is the product's core concept.
+Graphs, AI and ontology flexibility should be treated as means to improve decisions, not as ends in themselves.
 
-## Consequences
+## ADR-013: Knowledge graph is an implementation approach
 
-Before building major features, agents should understand:
+### Decision
 
-- Core entities
-- Relationships
-- Graph semantics
-- Domain language
+The knowledge graph is the primary implementation approach for now, not the product vision itself.
 
----
+### Consequences
 
-# ADR-005: Domain Model as Conceptual Foundation
-
-## Decision
-
-The domain model should act as the conceptual contract of the system.
-
-## Context
-
-The project repeatedly returns to a common set of entities:
-
-- Research
-- Insight
-- Goal
-- Opportunity
-- Solution
-- Experiment
-- Decision
-- Outcome
-
-This language should guide the product, architecture and AI reasoning.
-
-## Reasoning
-
-A clear domain model reduces ambiguity and helps agents make consistent decisions.
-
-## Consequences
-
-Changes to core terminology should be reflected in DOMAIN_MODEL.md.
-
-Agents should avoid introducing duplicate terms without explaining why.
-
----
-
-# ADR-006: Insights as First-Class Knowledge Objects
-
-## Decision
-
-Insights should be modelled as reusable first-class graph entities.
-
-## Context
-
-Insights can originate from research, experiments or outcomes. They can also inform multiple opportunities, decisions and future investigations.
-
-## Reasoning
-
-Treating insights as first-class entities supports non-linear product learning.
-
-For example:
-
-```text
-Experiment
-  produces → Insight
-
-Insight
-  informs → Decision
-```
-
-This is more accurate than modelling experiments as directly informing decisions.
-
-## Consequences
-
-Insights can:
-
-- Be reused across contexts
-- Inform decisions
-- Reveal opportunities
-- Originate from multiple sources
-- Support richer AI reasoning
+The project should stay focused on decision quality, lineage and explainability rather than graph features for their own sake.

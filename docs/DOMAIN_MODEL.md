@@ -2,61 +2,67 @@
 
 ## Purpose
 
-This document defines the initial domain model for Product Knowledge Graph.
+The domain model defines the core concepts and relationships used by Product Knowledge Graph.
 
-The domain model is the conceptual foundation of the system. It defines the language that should guide product thinking, architecture, UI design, data modelling and AI reasoning.
+It exists to support explainable knowledge lineage. The model should make it possible to trace how product knowledge moves from research and insight to opportunities, solutions, decisions and outcomes.
 
-## Core Principle
+## Modelling principles
 
-> Product knowledge is a graph of connected concepts.
+- Product knowledge is relational.
+- Relationships are as important as entities.
+- Product work is non-linear.
+- Entities can connect to many other entities.
+- Lineage is created by traversing relationships.
+- v0.1 should use a fixed ontology.
+- Future versions may support configurable ontologies.
 
-The system should not assume that product work follows a linear process. Product knowledge evolves through feedback loops, many-to-many relationships and repeated learning cycles.
-
-## Core Entities
+## Core entities
 
 ### Research
 
-Research is structured or unstructured activity that generates knowledge about users, customers, markets, products or systems.
+Research is activity or source material that helps the team understand users, customers, markets, products or systems.
 
 Examples:
 
-- User interviews
-- Surveys
-- Analytics review
-- Desk research
-- Usability testing
-- Market research
+- interview
+- survey
+- analytics review
+- usability test
+- desk research
+- market research
+- support ticket review
 
 ### Insight
 
-An insight is a reusable knowledge object derived from research, experiments, outcomes or other evidence.
+An insight is a reusable interpretation of knowledge.
 
-Insights are first-class entities because they can inform multiple downstream concepts.
+Insights can come from research, experiments, outcomes or other product context. They are first-class entities because they may inform many opportunities, decisions or future investigations.
 
 Examples:
 
 - Users do not understand the value proposition during onboarding.
-- Teams repeatedly lose decision context after discovery.
-- Marketers struggle to connect campaign planning to activation data.
+- Teams lose decision context after discovery.
+- A workflow is too slow for high-frequency product decisions.
 
 ### Goal
 
 A goal is an intended future state.
 
-Goals frame which opportunities matter and help determine whether an opportunity is valuable.
+Goals help frame which opportunities matter.
 
 Examples:
 
-- Increase activation
-- Improve retention
-- Reduce time to decision
-- Improve confidence in prioritisation
+- increase activation
+- improve retention
+- reduce time to decision
+- improve confidence in prioritisation
+- reduce operational risk
 
 ### Opportunity
 
-An opportunity is a user or customer need, pain point, unmet desire or problem area that could help achieve a goal if addressed.
+An opportunity is a user need, customer problem, pain point, unmet desire or improvement area that could help achieve a goal if addressed.
 
-Opportunities connect customer/user value with intended outcomes.
+Opportunities connect user or customer value with product direction.
 
 ### Solution
 
@@ -64,52 +70,56 @@ A solution is a proposed way to address an opportunity.
 
 Examples:
 
-- A feature
-- A workflow
-- A prototype
-- A product change
-- A process change
+- feature
+- workflow
+- prototype
+- product change
+- process change
+- AI-assisted capability
 
 ### Experiment
 
-An experiment is an intentional activity designed to generate evidence about a solution, opportunity or assumption.
+An experiment is an intentional activity that generates learning.
 
 Examples:
 
-- Prototype test
-- Landing page test
-- Usability test
+- prototype test
+- landing page test
+- usability test
 - A/B test
-- Manual concierge test
-- Internal workflow trial
+- manual concierge test
+- internal workflow trial
 
 ### Decision
 
-A decision is a chosen direction, trade-off or commitment based on available context.
+A decision is an explicit choice, trade-off or commitment.
+
+Decisions connect interpretation to action. They are important because they mark the point where the team chooses a direction.
 
 Examples:
 
-- Prioritise an opportunity
-- Build a solution
-- Stop work on an idea
-- Change product direction
-- Accept a trade-off
+- prioritise an opportunity
+- choose one solution over another
+- stop work on an idea
+- change product direction
+- accept a trade-off
+- act on an AI recommendation
 
 ### Outcome
 
 An outcome is a realised result.
 
-Outcomes represent what actually happened, not what was intended.
+Outcomes describe what happened after a decision, solution, experiment or product change.
 
 Examples:
 
-- Retention increased
-- Adoption remained flat
-- User comprehension improved
-- A workflow was not adopted
-- A decision created unexpected maintenance cost
+- adoption increased
+- retention stayed flat
+- onboarding comprehension improved
+- the workflow was not adopted
+- a decision created unexpected maintenance cost
 
-## Core Relationships
+## Core relationships
 
 ```text
 Research
@@ -139,63 +149,111 @@ Opportunity
 Solution
   validated_by → Experiment
 
+Experiment
+  informs → Decision
+
 Decision
   influences → Outcome
 ```
 
-## Value Hypothesis
+## Relationship notes
 
-A value hypothesis is currently treated as a derived concept rather than a first-class entity.
+### Research produces Insight
+
+Research does not automatically create decisions. It creates source knowledge that is interpreted into insights.
+
+### Insight reveals Opportunity
+
+An insight may reveal more than one opportunity. An opportunity may be supported by more than one insight.
+
+### Goal frames Opportunity
+
+An opportunity is stronger when it connects a meaningful user or customer need to a goal the team wants to achieve.
+
+### Opportunity motivates Solution
+
+A solution should be traceable back to the opportunity it aims to address.
+
+### Experiment produces Insight
+
+Experiments create learning. They may validate, invalidate or reshape the team's understanding.
+
+### Experiment informs Decision
+
+Experiments produce learning that can inform decisions. A decision may be informed by one or more experiments, either directly or through insights produced by those experiments.
+
+### Insight informs Decision
+
+Decisions should be informed by interpreted knowledge, not only raw material.
+
+### Decision influences Outcome
+
+Outcomes should be traceable back to the decisions that influenced them.
+
+## Knowledge lineage
+
+Knowledge lineage is an emergent capability of the graph.
+
+It is created by traversing relationships between entities.
+
+Example:
+
+```text
+Research
+→ Insight
+→ Opportunity
+→ Solution
+→ Experiment
+→ Decision
+→ Outcome
+```
+
+The system should support lineage questions such as:
+
+- Why was this decision made?
+- Which insights informed it?
+- Which opportunity did it relate to?
+- Which solution or experiment changed the direction?
+- What outcome followed?
+- Where is the reasoning weak?
+
+Knowledge lineage is not modelled as a separate entity in v0.1.
+
+## Explainability
+
+AI recommendations should be explainable through the same relationships used by humans.
+
+An AI-generated recommendation should be able to reference:
+
+- relevant research
+- supporting insights
+- related opportunities
+- previous decisions
+- observed outcomes
+- missing or weak connections
+
+## Value hypothesis
+
+A value hypothesis is currently a derived concept.
 
 ```text
 Value Hypothesis = Goal + Opportunity
 ```
 
-This means an opportunity becomes valuable when:
+An opportunity is valuable when:
 
-1. It represents an important user or customer need.
-2. Addressing it could help achieve a goal.
+1. it represents an important user or customer need
+2. addressing it could help achieve a goal
 
-## Graph Semantics
+Value hypothesis does not need to be a first-class entity in v0.1.
 
-Relationships are not assumed to be linear.
+## Open questions
 
-Entities may:
+Questions to validate:
 
-- Connect to many other entities
-- Participate in feedback loops
-- Be reused across different contexts
-- Support or contradict other knowledge
-- Change meaning as more evidence is gathered
-
-## Feedback Loops
-
-Product learning often creates loops.
-
-Example:
-
-```text
-Insight
-  reveals → Opportunity
-
-Opportunity
-  motivates → Solution
-
-Solution
-  validated_by → Experiment
-
-Experiment
-  produces → Insight
-```
-
-This allows the model to represent product discovery as an ongoing learning system rather than a one-way pipeline.
-
-## Open Questions
-
-The following questions should be explored through validation:
-
-- Which entities need to be first-class in v0.1?
-- Which relationships are most useful to users?
-- How much graph complexity can users comfortably understand?
-- Should value hypotheses eventually become first-class entities?
-- How should confidence, evidence strength or priority be represented?
+- Which relationships are most useful for decision lineage?
+- How much structure can users tolerate before capture becomes burdensome?
+- Should assumptions become first-class entities later?
+- Should value hypotheses become first-class entities later?
+- How should evidence strength or confidence be represented?
+- How should configurable ontologies work in future versions?

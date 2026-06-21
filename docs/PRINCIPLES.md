@@ -1,38 +1,44 @@
 # Principles
 
-## Purpose
+## North Star
 
-This document captures cross-cutting principles for Product Knowledge Graph.
+Improve product decisions through explainable knowledge lineage.
 
-These principles should guide product thinking, architecture, development and AI-assisted workflows.
+## Product principles
 
-## Product Principles
+### Knowledge lineage first
 
-### Knowledge is relational
+The system should make it easier to trace how knowledge influenced decisions and outcomes.
 
-Product knowledge gains meaning through relationships between concepts.
+### Explainability matters
 
-### Relationships are first-class entities
+Users should be able to understand why a decision was made or why an AI recommendation was produced.
 
-The system should make relationships explicit, meaningful and navigable.
+### Evidence-backed decision-making
 
-### Insights are reusable knowledge objects
+The system should encourage decisions grounded in connected product knowledge.
 
-Insights should not be trapped inside research notes, experiments or outcomes. They should be reusable entities that can inform many downstream concepts.
+### Relationships create value
 
-### Goals and outcomes are distinct
+Entities are useful because of the relationships between them.
 
-Goals are intended future states. Outcomes are realised results.
+### Trust must be designed in
 
-### Context should be durable
+Product knowledge can be sensitive. The system should be designed with future ownership, classification, permissioning and auditability in mind.
 
-Important context should be persisted where future humans and AI agents can find it.
+### AI should reason over connected knowledge
 
-## Development Principles
+AI should use the graph to reason, explain and identify gaps rather than only generate documents.
+
+### Start opinionated, become flexible later
+
+v0.1 should use a fixed ontology. Later versions may support configurable workflows, ontologies and relationship models.
+
+## Development principles
 
 ### Build the simplest thing that enables learning
 
-Avoid building for hypothetical scale or future requirements before the core value is validated.
+Avoid building for hypothetical scale or future requirements before core value is validated.
 
 ### Prefer working software over perfect architecture
 
@@ -40,30 +46,22 @@ Architecture should support learning, not slow it down.
 
 ### Prefer vertical slices
 
-Build small, independently testable increments.
+Build small increments that can be tested independently.
 
-### Avoid premature abstractions
+### Avoid premature abstraction
 
 Every abstraction adds maintenance cost, learning cost and context cost.
 
-### Repository context beats prompt repetition
+### Keep stable context in the repository
 
-Stable knowledge should live in documentation rather than being repeatedly included in prompts.
+Stable knowledge belongs in documentation, not repeated prompts.
 
-## AI Principles
+## Evaluation questions
 
-### Minimise future context requirements
+Before adding a capability, ask:
 
-Place information where future agents can retrieve it without repeated explanation.
-
-### Preserve conceptual integrity
-
-Agents should maintain consistent domain language and avoid introducing duplicate concepts casually.
-
-### Optimise useful output per token
-
-Prompts should be small but sufficient. Repository documentation should carry stable context.
-
-### Challenge complexity
-
-AI agents should challenge over-engineering, unnecessary frameworks and speculative architecture.
+- Does this improve decision quality?
+- Does this improve lineage?
+- Does this make reasoning more explainable?
+- Does this reduce future context loss?
+- Does this preserve future governance flexibility?

@@ -1,75 +1,33 @@
-# Product Knowledge Graph (PKG)
+# Product Knowledge Graph
 
-> An AI-native product knowledge system that models product knowledge as a graph of connected concepts rather than a collection of documents.
+Product Knowledge Graph helps teams improve product decisions through explainable knowledge lineage.
 
-## Why?
+The project explores how product knowledge can be captured as connected concepts rather than isolated documents. The aim is to make the reasoning behind product decisions easier to trace, explain and reuse.
 
-Product teams do not struggle because information is missing. They struggle because the relationships between pieces of information are often invisible.
+## Current focus
 
-Research, insights, opportunities, solutions, decisions and outcomes become fragmented across documents and tools, making context difficult to understand, maintain and reuse.
+The current version is focused on proving the core workflow:
 
-Product Knowledge Graph aims to make these relationships explicit, navigable and reusable for both humans and AI agents.
+- capture product knowledge as connected entities
+- preserve the relationships between research, insights, opportunities, solutions, experiments, decisions and outcomes
+- trace decisions back to the knowledge that informed them
+- trace outcomes back to the decisions and assumptions that led to them
+- create a foundation for AI reasoning over connected product context
 
-## Core Thesis
+## Documentation
 
-> Product knowledge is fundamentally relational rather than hierarchical.
+Project context is kept in `docs/`.
 
-Rather than organising information into documents or linear workflows, PKG treats product knowledge as a graph of connected concepts.
+Recommended reading order:
 
-## Current Status
+1. `PRODUCT_VISION.md`
+2. `PROJECT_OVERVIEW.md`
+3. `DOMAIN_MODEL.md`
+4. `ARCHITECTURE.md`
+5. `ROADMAP.md`
+6. `DECISIONS.md`
+7. `PRINCIPLES.md`
+8. `USER_PERSONAS.md`
+9. `AGENT_GUIDE.md`
 
-**Version:** v0.1 – Validation and Learning
-
-The current goal is to:
-
-1. Define a lightweight domain model
-2. Build a simple graph prototype
-3. Explore AI-assisted reasoning
-4. Validate the concept through rapid iteration and user feedback
-
-## Project Documentation
-
-Repository context lives in `docs/`:
-
-* `PRODUCT_VISION.md`
-* `PROJECT_OVERVIEW.md`
-* `DOMAIN_MODEL.md`
-* `ARCHITECTURE.md`
-* `DECISIONS.md`
-* `ROADMAP.md`
-* `PRINCIPLES.md`
-* `USER_PERSONAS.md`
-* `AGENT_GUIDE.md`
-
-## Development Workflow
-
-```text
-ChatGPT → Planning & Architecture
-Codex → Implementation
-Manual Review & Testing
-```
-
-> Build the simplest version that enables learning.
-
-## Development Setup
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Start the local development server:
-
-```bash
-npm run dev
-```
-
-Run validation checks:
-
-```bash
-npm run lint
-npm run typecheck
-npm run test
-npm run build
-```
+Personal AI workflow files belong in `.ai-private/` and should not be committed.

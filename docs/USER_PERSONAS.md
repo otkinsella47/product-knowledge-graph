@@ -2,75 +2,81 @@
 
 ## Status
 
-These personas are early hypotheses.
+These personas are hypotheses for v0.1.
 
-They should be refined through user validation rather than treated as fixed requirements.
+They should be refined through user validation.
 
-## Persona 1: Product Manager
+## Product Manager
 
 ### Context
 
-Product managers need to connect research, insights, opportunities, decisions, experiments and outcomes across messy, non-linear workflows.
+Product managers connect research, insights, opportunities, solutions, decisions and outcomes across non-linear workflows.
 
-### Pain Points
+### Pain points
 
 - Product knowledge is scattered across tools and documents.
 - Decision context is lost over time.
 - It is hard to trace how insights led to opportunities or decisions.
-- Opportunities are often disconnected from goals.
-- Teams repeatedly recreate context in meetings and documents.
-- AI agents need repeated prompting because project context is not structured.
+- Teams repeatedly recreate context.
+- AI tools need repeated prompting because product context is not structured.
 
-### Potential Value
+### Needs
 
-Product Knowledge Graph could help product managers:
+- Understand why decisions were made.
+- Trace decisions back to supporting knowledge.
+- Preserve organisational memory.
+- Identify gaps in evidence or reasoning.
+- Use AI reasoning over connected knowledge.
 
-- Preserve decision context
-- Trace relationships between concepts
-- Navigate from evidence to action
-- Reduce repeated context-building
-- Use AI more effectively for product reasoning
+### Potential value
 
-## Persona 2: Product Designer
+Product Knowledge Graph could help product managers preserve decision context, trace relationships and reason from knowledge to action.
+
+## Product Designer
 
 ### Context
 
-Product designers often need to understand the reasoning behind opportunities, solutions and experiments.
+Product designers need to understand the reasoning behind opportunities, solutions and experiments.
 
-### Pain Points
+### Pain points
 
 - Ideas may be disconnected from the insights that motivated them.
 - Experiments may be hard to trace back to original assumptions.
 - Design decisions can lose context after handoff.
 - Discovery work may not be clearly connected to delivery work.
 
-### Potential Value
+### Needs
 
-Product Knowledge Graph could help designers:
+- Understand why a solution exists.
+- Trace solutions back to insights and opportunities.
+- Preserve discovery context.
+- Understand what outcomes followed from earlier work.
 
-- Understand why a solution exists
-- Trace opportunities back to insights
-- Connect prototypes and experiments to product goals
-- Collaborate with product managers using shared context
+### Potential value
 
-## Persona 3: Leadership and Stakeholders
+Product Knowledge Graph could help designers connect design work to product reasoning and outcomes.
+
+## Product Leader or Stakeholder
 
 ### Context
 
-Leaders and stakeholders need visibility into why teams are making certain decisions and what outcomes those decisions create.
+Product leaders need confidence in product decisions and visibility into the reasoning behind them.
 
-### Pain Points
+### Pain points
 
-- Reasoning behind decisions is often hidden in documents or meetings.
+- Decision rationale is often hidden in documents or meetings.
 - Evidence behind priorities can be unclear.
 - Outcomes are not always connected back to original decisions.
-- It can be difficult to understand whether product work is learning effectively.
+- AI recommendations may be difficult to trust without explanation.
 
-### Potential Value
+### Needs
 
-Product Knowledge Graph could help stakeholders:
+- Confidence in product decisions.
+- Visibility of evidence and trade-offs.
+- Traceability from decisions to outcomes.
+- Trustworthy AI-assisted reasoning.
+- Clear organisational memory.
 
-- Understand decision rationale
-- See how product work supports goals
-- Track outcomes back to decisions
-- Improve confidence in product direction
+### Potential value
+
+Product Knowledge Graph could help stakeholders understand decision rationale, track outcomes and improve trust in product direction.
