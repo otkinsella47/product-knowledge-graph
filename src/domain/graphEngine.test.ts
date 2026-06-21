@@ -151,6 +151,114 @@ describe('graph engine', () => {
     ]);
   });
 
+  it('retrieves incoming and outgoing connected knowledge separately', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const insight = engine.createEntity({
+      type: 'insight',
+      title: 'Users miss onboarding value',
+      description: 'An interpreted research finding.',
+    });
+    const opportunity = engine.createEntity({
+      type: 'opportunity',
+      title: 'Clarify onboarding value',
+      description: 'A user problem worth addressing.',
+    });
+    const goal = engine.createEntity({
+      type: 'goal',
+      title: 'Improve activation',
+      description: 'Increase the number of users who understand the product.',
+    });
+    const solution = engine.createEntity({
+      type: 'solution',
+      title: 'Rewrite first-run messaging',
+      description: 'A proposed way to clarify the product value.',
+    });
+    const incomingRelationship = engine.createRelationship({
+      type: 'reveals',
+      sourceEntityId: insight.id,
+      targetEntityId: opportunity.id,
+    });
+    const outgoingGoalRelationship = engine.createRelationship({
+      type: 'supports',
+      sourceEntityId: opportunity.id,
+      targetEntityId: goal.id,
+    });
+    const outgoingSolutionRelationship = engine.createRelationship({
+      type: 'motivates',
+      sourceEntityId: opportunity.id,
+      targetEntityId: solution.id,
+    });
+
+    expect(engine.getIncomingRelationshipsForEntity(opportunity.id)).toEqual([
+      incomingRelationship,
+    ]);
+    expect(engine.getOutgoingRelationshipsForEntity(opportunity.id)).toEqual([
+      outgoingGoalRelationship,
+      outgoingSolutionRelationship,
+    ]);
+    expect(engine.getIncomingConnectedEntities(opportunity.id)).toEqual([
+      {
+        entity: insight,
+        relationship: incomingRelationship,
+        direction: 'incoming',
+      },
+    ]);
+    expect(engine.getOutgoingConnectedEntities(opportunity.id)).toEqual([
+      {
+        entity: goal,
+        relationship: outgoingGoalRelationship,
+        direction: 'outgoing',
+      },
+      {
+        entity: solution,
+        relationship: outgoingSolutionRelationship,
+        direction: 'outgoing',
+      },
+    ]);
+    expect(engine.getDirectConnectedKnowledge(opportunity.id)).toMatchObject({
+      entity: opportunity,
+      incomingRelationships: [incomingRelationship],
+      outgoingRelationships: [
+        outgoingGoalRelationship,
+        outgoingSolutionRelationship,
+      ],
+      relationships: [
+        incomingRelationship,
+        outgoingGoalRelationship,
+        outgoingSolutionRelationship,
+      ],
+    });
+    expect(engine.getDirectConnectedKnowledge('missing-id')).toBe(undefined);
+  });
+
+  it('retrieves a simple direct relationship path between connected entities', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const decision = engine.createEntity({
+      type: 'decision',
+      title: 'Improve onboarding',
+      description: 'Decision to improve onboarding messaging.',
+    });
+    const outcome = engine.createEntity({
+      type: 'outcome',
+      title: 'Activation improved',
+      description: 'More users understood the product value.',
+    });
+    const relationship = engine.createRelationship({
+      type: 'influences',
+      sourceEntityId: decision.id,
+      targetEntityId: outcome.id,
+    });
+
+    expect(engine.getDirectRelationshipPath(decision.id, outcome.id)).toEqual({
+      sourceEntity: decision,
+      relationship,
+      targetEntity: outcome,
+    });
+    expect(engine.getDirectRelationshipPath(outcome.id, decision.id)).toBe(
+      undefined,
+    );
+  });
+
   it('prevents deleting entities while relationships exist', () => {
     const engine = createGraphEngine(createInMemoryGraphRepository());
     const insight = engine.createEntity({

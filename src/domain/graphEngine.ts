@@ -21,6 +21,22 @@ export type ConnectedEntity = {
   direction: 'incoming' | 'outgoing';
 };
 
+export type DirectConnectedKnowledge = {
+  entity: Entity;
+  incomingRelationships: Relationship[];
+  outgoingRelationships: Relationship[];
+  relationships: Relationship[];
+  incomingConnectedEntities: ConnectedEntity[];
+  outgoingConnectedEntities: ConnectedEntity[];
+  connectedEntities: ConnectedEntity[];
+};
+
+export type DirectRelationshipPath = {
+  sourceEntity: Entity;
+  relationship: Relationship;
+  targetEntity: Entity;
+};
+
 export type GraphEngine = {
   createEntity(input: CreateEntityInput): Entity;
   updateEntity(id: string, input: UpdateEntityInput): Entity | undefined;
@@ -30,7 +46,16 @@ export type GraphEngine = {
   createRelationship(input: CreateRelationshipInput): Relationship;
   deleteRelationship(id: string): boolean;
   getRelationshipsForEntity(entityId: string): Relationship[];
+  getIncomingRelationshipsForEntity(entityId: string): Relationship[];
+  getOutgoingRelationshipsForEntity(entityId: string): Relationship[];
   getConnectedEntities(entityId: string): ConnectedEntity[];
+  getIncomingConnectedEntities(entityId: string): ConnectedEntity[];
+  getOutgoingConnectedEntities(entityId: string): ConnectedEntity[];
+  getDirectConnectedKnowledge(entityId: string): DirectConnectedKnowledge | undefined;
+  getDirectRelationshipPath(
+    sourceEntityId: string,
+    targetEntityId: string,
+  ): DirectRelationshipPath | undefined;
   validateRelationship(input: CreateRelationshipInput): void;
 };
 
@@ -78,36 +103,92 @@ export function createGraphEngine(repository: GraphRepository): GraphEngine {
       return getRelationshipsForEntity(repository, entityId);
     },
 
+    getIncomingRelationshipsForEntity(entityId) {
+      return getIncomingRelationshipsForEntity(repository, entityId);
+    },
+
+    getOutgoingRelationshipsForEntity(entityId) {
+      return getOutgoingRelationshipsForEntity(repository, entityId);
+    },
+
     getConnectedEntities(entityId) {
-      return getRelationshipsForEntity(repository, entityId).flatMap(
-        (relationship): ConnectedEntity[] => {
-          if (relationship.sourceEntityId === entityId) {
-            const entity = repository.getEntity(relationship.targetEntityId);
+      return [
+        ...getIncomingConnectedEntities(repository, entityId),
+        ...getOutgoingConnectedEntities(repository, entityId),
+      ];
+    },
 
-            return entity
-              ? [
-                  {
-                    entity,
-                    relationship,
-                    direction: 'outgoing' as const,
-                  },
-                ]
-              : [];
-          }
+    getIncomingConnectedEntities(entityId) {
+      return getIncomingConnectedEntities(repository, entityId);
+    },
 
-          const entity = repository.getEntity(relationship.sourceEntityId);
+    getOutgoingConnectedEntities(entityId) {
+      return getOutgoingConnectedEntities(repository, entityId);
+    },
 
-          return entity
-            ? [
-                {
-                  entity,
-                  relationship,
-                  direction: 'incoming' as const,
-                },
-              ]
-            : [];
-        },
+    getDirectConnectedKnowledge(entityId) {
+      const entity = repository.getEntity(entityId);
+
+      if (!entity) {
+        return undefined;
+      }
+
+      const incomingRelationships = getIncomingRelationshipsForEntity(
+        repository,
+        entityId,
       );
+      const outgoingRelationships = getOutgoingRelationshipsForEntity(
+        repository,
+        entityId,
+      );
+      const incomingConnectedEntities = getIncomingConnectedEntities(
+        repository,
+        entityId,
+      );
+      const outgoingConnectedEntities = getOutgoingConnectedEntities(
+        repository,
+        entityId,
+      );
+
+      return {
+        entity,
+        incomingRelationships,
+        outgoingRelationships,
+        relationships: [...incomingRelationships, ...outgoingRelationships],
+        incomingConnectedEntities,
+        outgoingConnectedEntities,
+        connectedEntities: [
+          ...incomingConnectedEntities,
+          ...outgoingConnectedEntities,
+        ],
+      };
+    },
+
+    getDirectRelationshipPath(sourceEntityId, targetEntityId) {
+      const relationship = repository
+        .listRelationships()
+        .find(
+          (candidateRelationship) =>
+            candidateRelationship.sourceEntityId === sourceEntityId &&
+            candidateRelationship.targetEntityId === targetEntityId,
+        );
+
+      if (!relationship) {
+        return undefined;
+      }
+
+      const sourceEntity = repository.getEntity(sourceEntityId);
+      const targetEntity = repository.getEntity(targetEntityId);
+
+      if (!sourceEntity || !targetEntity) {
+        return undefined;
+      }
+
+      return {
+        sourceEntity,
+        relationship,
+        targetEntity,
+      };
     },
 
     validateRelationship(input) {
@@ -147,4 +228,64 @@ function getRelationshipsForEntity(
         relationship.sourceEntityId === entityId ||
         relationship.targetEntityId === entityId,
     );
+}
+
+function getIncomingRelationshipsForEntity(
+  repository: GraphRepository,
+  entityId: string,
+): Relationship[] {
+  return repository
+    .listRelationships()
+    .filter((relationship) => relationship.targetEntityId === entityId);
+}
+
+function getOutgoingRelationshipsForEntity(
+  repository: GraphRepository,
+  entityId: string,
+): Relationship[] {
+  return repository
+    .listRelationships()
+    .filter((relationship) => relationship.sourceEntityId === entityId);
+}
+
+function getIncomingConnectedEntities(
+  repository: GraphRepository,
+  entityId: string,
+): ConnectedEntity[] {
+  return getIncomingRelationshipsForEntity(repository, entityId).flatMap(
+    (relationship): ConnectedEntity[] => {
+      const entity = repository.getEntity(relationship.sourceEntityId);
+
+      return entity
+        ? [
+            {
+              entity,
+              relationship,
+              direction: 'incoming' as const,
+            },
+          ]
+        : [];
+    },
+  );
+}
+
+function getOutgoingConnectedEntities(
+  repository: GraphRepository,
+  entityId: string,
+): ConnectedEntity[] {
+  return getOutgoingRelationshipsForEntity(repository, entityId).flatMap(
+    (relationship): ConnectedEntity[] => {
+      const entity = repository.getEntity(relationship.targetEntityId);
+
+      return entity
+        ? [
+            {
+              entity,
+              relationship,
+              direction: 'outgoing' as const,
+            },
+          ]
+        : [];
+    },
+  );
 }
