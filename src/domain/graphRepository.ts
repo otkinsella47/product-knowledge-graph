@@ -14,6 +14,7 @@ import {
 export type GraphRepository = {
   createEntity(input: CreateEntityInput): Entity;
   updateEntity(id: string, input: UpdateEntityInput): Entity | undefined;
+  deleteEntity(id: string): boolean;
   getEntity(id: string): Entity | undefined;
   listEntities(): Entity[];
   createRelationship(input: CreateRelationshipInput): Relationship;
@@ -21,6 +22,7 @@ export type GraphRepository = {
     id: string,
     input: UpdateRelationshipInput,
   ): Relationship | undefined;
+  deleteRelationship(id: string): boolean;
   getRelationship(id: string): Relationship | undefined;
   listRelationships(): Relationship[];
 };
@@ -78,6 +80,10 @@ export function createInMemoryGraphRepository(
       return updatedEntity;
     },
 
+    deleteEntity(id) {
+      return entities.delete(id);
+    },
+
     getEntity(id) {
       return entities.get(id);
     },
@@ -126,6 +132,10 @@ export function createInMemoryGraphRepository(
       relationships.set(id, updatedRelationship);
 
       return updatedRelationship;
+    },
+
+    deleteRelationship(id) {
+      return relationships.delete(id);
     },
 
     getRelationship(id) {
