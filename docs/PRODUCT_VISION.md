@@ -1,151 +1,141 @@
 # Product Vision
 
+## North Star
+
+Improve product decisions through explainable knowledge lineage.
+
 ## Vision
 
-Product Knowledge Graph is an AI-native product knowledge system that models the relationships between product concepts such as research, insights, goals, opportunities, solutions, experiments, decisions and outcomes.
+Product Knowledge Graph is a trusted knowledge and reasoning layer for product teams.
 
-Rather than treating product knowledge as a set of documents, folders, boards or linear workflows, the system treats knowledge as a graph of connected concepts.
+It helps people and AI systems make better product decisions by preserving the relationships between product knowledge, decisions and outcomes.
 
-## Problem Statement
+## Problem
 
-Product managers and product teams need to move from insight to decision to implementation. This process includes research, sense-making, prioritisation, solution exploration, experimentation, decision-making and outcome tracking.
+Product work is rarely linear.
 
-In practice, this work is non-linear and varies across individuals, teams and domains. Existing tools often force this knowledge into documents, tickets, canvases or hierarchies. These formats can capture information, but they rarely capture the relationships between pieces of information.
+A research interview can lead to several insights. An insight can reveal multiple opportunities. A solution can create new questions, experiments and trade-offs. A decision can lead to outcomes that change how the team understands the original problem.
 
-As a result:
+Most product knowledge is stored in documents, tickets, roadmaps, meeting notes and research repositories. These tools are useful, but they often lose the relationships between information.
 
-- Research becomes disconnected from decisions.
-- Decisions lose their original context.
-- Opportunities are separated from the goals they support.
-- Experiments and outcomes are hard to trace back to the thinking that created them.
-- Product knowledge is repeatedly recreated in meetings, documents and prompts.
-- AI agents lack durable context for reasoning about product work.
+Common problems:
 
-## Core Thesis
+- teams forget why a decision was made
+- research becomes disconnected from delivery
+- opportunities lose their link to goals
+- solutions are chosen without preserving the trade-offs
+- outcomes are not connected back to earlier decisions
+- new team members have to rebuild context manually
+- AI tools lack the structured context needed for reliable reasoning
 
-> Product knowledge is fundamentally relational rather than hierarchical.
+The result is weaker decision-making, repeated context-setting and lower trust in both human and AI recommendations.
 
-Product teams do not only need to store information. They need to preserve the relationships between information.
+## Core idea
 
-The value of the system comes from making those relationships explicit, navigable and reusable.
+Product knowledge is relational.
 
-## Why Existing Tools Fall Short
+The value of the system is not just storing research, insights or decisions. The value comes from making the relationships between them explicit.
 
-Existing product tools tend to optimise for specific artefacts:
+A product team should be able to move through the knowledge network and answer:
 
-- Documents
-- Roadmaps
-- Tickets
-- Research repositories
-- Opportunity trees
-- Experiment logs
-- Decision records
-
-These tools are useful, but they often fragment context. They make it difficult to answer questions such as:
-
-- Which insights led to this opportunity?
-- Which goal does this opportunity support?
-- Which solution was chosen and why?
-- Which experiment validated or invalidated the idea?
-- Which decision was made based on which evidence?
-- Which outcome resulted from the decision?
+- What led us to this decision?
+- Which insights support this opportunity?
+- Which goal does this work support?
+- What alternatives were considered?
+- Which experiment changed our direction?
+- What happened after we made the decision?
 - What did we learn?
 
-Product Knowledge Graph aims to make these connections visible and durable.
+## Knowledge lineage
 
-## Long-Term Vision
+Knowledge lineage is the traceable path between product knowledge objects.
 
-The long-term vision is to build an AI-native product operating system that helps teams:
+Example:
 
-- Capture product knowledge as connected concepts
-- Navigate relationships between product artefacts
-- Preserve decision context over time
-- Reason from evidence to action
-- Identify gaps, contradictions and assumptions
-- Support AI-assisted product discovery and delivery
-- Reduce repeated context-building across teams and tools
+```text
+Research
+→ Insight
+→ Opportunity
+→ Solution
+→ Experiment
+→ Decision
+→ Outcome
+```
 
-## Core Concepts
+Lineage is not a separate artefact. It is created by the relationships between entities.
 
-The initial domain model focuses on:
+The system should make lineage easy to inspect from either direction:
 
-- Research
-- Insight
-- Goal
-- Opportunity
-- Solution
-- Experiment
-- Decision
-- Outcome
+- backwards from a decision to its supporting knowledge
+- forwards from research or insight to the decisions and outcomes it influenced
 
-These concepts are expected to evolve through validation.
+## AI reasoning
 
-## Design Principles
+The main AI opportunity is reasoning over connected product knowledge.
 
-### Knowledge is relational
+The product should not be centred on generic artefact generation. PRDs, user stories and summaries may be useful outputs, but they are not the differentiating capability.
 
-The system should prioritise relationships between concepts, not just the concepts themselves.
+The stronger opportunity is to help AI answer questions such as:
 
-### Relationships are first-class
+- Which decisions have weak support?
+- Which opportunities have the strongest lineage?
+- Which assumptions remain untested?
+- Which outcomes contradict earlier expectations?
+- Why is this solution being recommended?
+- What knowledge is missing before a decision can be made?
 
-Relationships should be explicit, meaningful and navigable.
+AI recommendations should be explainable through the graph relationships used to produce them.
 
-### Insights are reusable knowledge objects
+## Trust and governance
 
-Insights can originate from research, experiments, outcomes or other sources. They can inform multiple opportunities, decisions and future investigations.
+Product knowledge can include customer research, personal data, strategy, commercial information and executive decisions.
 
-### Goals and outcomes are distinct
+The first version does not need enterprise governance, but the product should be designed with future trust requirements in mind.
 
-Goals represent intended future states. Outcomes represent realised states.
+Future capabilities may include:
 
-### The system should explain itself
+- workspace ownership
+- entity ownership
+- classification metadata
+- permission-aware AI reasoning
+- audit trails
+- explainable recommendations
+- configurable governance rules
 
-Repository documentation, domain language and architecture should allow a new human or AI agent to understand the project with minimal prompting.
+## Ontology direction
 
-### Simplicity before completeness
+Different teams structure product work differently.
 
-The system should avoid exhaustive modelling before there is evidence that additional complexity is needed.
+Examples include:
 
-## Development Philosophy
+- Opportunity Solution Trees
+- Jobs To Be Done
+- product discovery workflows
+- data product workflows
+- domain-specific operating models
 
-The primary objective of Product Knowledge Graph v0.1 is learning and validation.
+The long-term product should support configurable ontologies and relationship types.
 
-Prefer:
+The first version should not start there. It should use a fixed, opinionated ontology so the team can validate the core product value before adding flexibility.
 
-- Working software
-- Fast iteration
-- User feedback
-- Simple solutions
-- Rapid experimentation
+## v0.1 product stance
 
-Over:
+v0.1 should prove whether explainable knowledge lineage is valuable.
 
-- Perfect architecture
-- Scalability assumptions
-- Enterprise-grade infrastructure
-- Premature optimisation
+The first version should favour:
 
-> Build the simplest version that enables learning.
+- clear relationships
+- simple workflows
+- fast iteration
+- user feedback
+- useful lineage views
+- grounded AI reasoning experiments
 
-## Success Criteria for v0.1
+It should avoid:
 
-v0.1 is successful if it helps validate whether graph-based product knowledge management is useful.
-
-Success may include:
-
-- Users understand the value of modelling product knowledge as relationships.
-- Users can navigate from insights to opportunities, solutions, decisions and outcomes.
-- The system helps reduce repeated context recreation.
-- The graph structure supports useful AI-assisted reasoning.
-- The project produces enough learning to guide the next phase.
-
-## Non-Goals for v0.1
-
-v0.1 should not aim to deliver:
-
-- Enterprise-grade infrastructure
-- Complex permissions
-- Large-scale deployment
-- Exhaustive domain modelling
-- Advanced automation before core workflows are validated
-- Production-grade scalability before product value is proven
+- broad AI toolkit features
+- fully configurable ontologies
+- enterprise governance
+- complex infrastructure
+- graph visualisation that does not improve decision traceability
+- automation before the underlying reasoning workflow is clear

@@ -2,68 +2,61 @@
 
 ## Summary
 
-Product Knowledge Graph is a side project focused on building an AI-native product knowledge system.
+Product Knowledge Graph is a product knowledge and reasoning platform.
 
-The project explores whether product management knowledge can be better captured, connected and reasoned about as a graph of concepts rather than as isolated documents or linear workflows.
+It is designed to improve product decisions by making the relationships between knowledge, decisions and outcomes explicit.
 
-## Current Phase
+## North Star
 
-The project is currently in v0.1.
+Improve product decisions through explainable knowledge lineage.
 
-The focus is on:
+## Current phase
 
-- Establishing durable project context
-- Defining the initial domain model
-- Building a simple prototype
-- Validating the core concept
-- Learning quickly through feedback
+The project is in v0.1.
 
-## Current Objective
+This phase is about validation, not scale. The goal is to test whether connected product knowledge helps people understand, explain and improve product decisions.
 
-The primary objective of v0.1 is learning and validation.
+## Primary hypothesis
 
-The project should answer:
+Teams make better product decisions when they can trace how knowledge flows from research and insight to opportunities, solutions, decisions and outcomes.
 
-> Is modelling product knowledge as a graph useful enough to justify further development?
+## Secondary hypothesis
 
-## Working Model
+AI reasoning is more useful when it is grounded in connected product knowledge rather than isolated documents or prompts.
 
-The development workflow is:
+## v0.1 scope
 
-1. ChatGPT for planning, architecture and product thinking
-2. Codex for implementation
-3. Manual review and testing
-4. Repository documentation as durable shared context
+In scope:
 
-## In Scope for v0.1
+- fixed product ontology
+- entity creation
+- relationship creation
+- lineage navigation
+- decision traceability
+- lightweight AI reasoning experiments
+- simple persistence
+- user testing
 
-- Core domain model
-- Basic graph representation
-- Relationship-first workflows
-- Lightweight UI or prototype
-- AI-assisted reasoning experiments
-- Manual testing and validation
-- Documentation that helps future AI agents understand the project
+Out of scope:
 
-## Out of Scope for v0.1
+- fully configurable ontologies
+- enterprise permissioning
+- advanced governance
+- production-scale infrastructure
+- generic AI artefact generation
+- complex graph visualisation before lineage value is proven
 
-- Enterprise infrastructure
-- Complex permissions
-- Production deployment guarantees
-- Advanced integrations
-- Large-scale performance optimisation
-- Heavy graph database commitments before validation
-- Overly detailed schemas before user needs are clearer
+## Working model
 
-## Repository Context Strategy
+The project uses a repository-first context strategy.
 
-Stable project knowledge should live in repository documentation, not repeated prompts.
+Stable project knowledge belongs in documentation. Temporary planning and implementation details belong in prompts, conversations or private notes.
 
-Public project documentation belongs in `docs/`.
+Public project context belongs in `docs/`.
 
-Personal AI workflow guidance belongs in `.ai-private/` and should be ignored by Git.
+Personal AI workflow notes belong in `.ai-private/`.
 
-## Proposed Repository Structure
+## Repository structure
 
 ```text
 docs/
@@ -79,33 +72,42 @@ docs/
 
 .ai-private/
 ├── codex-workflow.md
-├── token-optimisation.md
 ├── personal-prompts.md
 └── scratch-notes.md
 ```
 
-## Current Assumptions
+## Development approach
 
-- Product knowledge is better represented as connected concepts than isolated documents.
-- Product teams need stronger traceability between insights, opportunities, decisions and outcomes.
-- AI agents will be more useful when product context is explicit and structured.
-- The first version should optimise for learning, not completeness.
-- The domain model should evolve through validation.
+The project is built through a supervised AI-assisted workflow:
 
-## Known Risks
+```text
+ChatGPT
+→ planning, product thinking and architecture
 
-- The model may become too abstract for users.
-- The graph may add complexity without enough workflow value.
-- The project may over-engineer before validating the core use case.
-- AI agents may misinterpret project context if documentation is unclear or duplicated.
-- The user experience may need to simplify graph concepts for practical adoption.
+Codex
+→ implementation
 
-## Success Measures
+Manual review
+→ validation, testing and quality control
+```
 
-Potential success measures include:
+## Success signals
 
-- Users can understand the product concept quickly.
-- Users can create and navigate meaningful relationships.
-- Users can trace decisions back to supporting knowledge.
-- The system reduces repeated context-building.
-- AI agents can use repository context effectively.
+v0.1 is working if users can:
+
+- understand how product knowledge is connected
+- trace a decision back to the knowledge that informed it
+- trace knowledge forward to decisions and outcomes
+- identify gaps in reasoning or support
+- see how AI reasoning is grounded in connected context
+
+## Risks
+
+Known risks:
+
+- the graph model may feel too abstract
+- relationship capture may add too much manual overhead
+- users may prefer immediate artefact generation over lineage
+- the fixed ontology may not fit every workflow
+- AI reasoning may be weak until enough knowledge exists
+- governance needs may emerge earlier than expected

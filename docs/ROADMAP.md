@@ -2,142 +2,174 @@
 
 ## Purpose
 
-This roadmap describes the intended learning path for Product Knowledge Graph v0.1.
+This roadmap describes the current learning path for Product Knowledge Graph.
 
-The roadmap should be treated as a guide, not a fixed delivery plan.
+It is a guide for sequencing work, not a fixed delivery commitment.
 
-## Roadmap Principles
+## North Star
 
-The roadmap prioritises:
+Improve product decisions through explainable knowledge lineage.
 
-1. Learning
-2. Validation
-3. User feedback
-4. Working software
-5. Gradual increases in sophistication
+## Roadmap principles
 
-Infrastructure and optimisation work should only be introduced when supported by evidence from previous phases.
+The roadmap should prioritise:
 
-## Phase 1: Workspace and Context Setup
+1. knowledge lineage
+2. relationship modelling
+3. explainability
+4. user feedback
+5. AI reasoning foundations
+6. ontology flexibility after validation
+7. trust and governance after core value is proven
 
-Goal:
+## Phase 1: Context and North Star alignment
 
-Create a repository that explains itself to future humans and AI agents.
+### Goal
 
-Focus:
+Ensure the project documentation, agent guidance and roadmap align around explainable knowledge lineage.
 
-- Repository structure
-- Documentation structure
-- Git ignore strategy
-- Agent guidance
-- Personal AI workflow separation
+### Focus
 
-Outputs:
+- product vision
+- domain language
+- repository documentation
+- development principles
+- AI agent guidance
 
-- PRODUCT_VISION.md
-- PROJECT_OVERVIEW.md
-- DOMAIN_MODEL.md
-- ARCHITECTURE.md
-- DECISIONS.md
-- ROADMAP.md
-- AGENT_GUIDE.md
-- `.ai-private/` workflow files
+### Outputs
 
-## Phase 2: Core Domain Model
+- clear North Star
+- updated context files
+- shared terminology
+- repository structure
 
-Goal:
+## Phase 2: Fixed ontology and relationship model
 
-Define the smallest useful product knowledge graph model.
+### Goal
 
-Focus:
+Define the smallest useful ontology and relationship model needed for decision lineage.
 
-- Core entities
-- Core relationships
-- Graph semantics
-- First-class insight model
-- Goal, opportunity and outcome distinction
+### Focus
 
-Outputs:
+- core entities
+- core relationships
+- relationship semantics
+- lineage paths
+- open modelling questions
 
-- Initial domain model
-- Relationship definitions
-- Open modelling questions
+### Outputs
 
-## Phase 3: Flexible Graph Engine
+- fixed v0.1 ontology
+- relationship definitions
+- initial lineage model
 
-Goal:
+## Phase 3: Core graph and lineage foundation
 
-Build the minimum system capable of representing product knowledge as a graph.
+### Goal
 
-Focus:
+Build the minimum system for creating connected product knowledge.
 
-- Nodes
-- Relationships
-- Basic graph operations
-- Simple persistence
-- Minimal validation rules
+### Focus
 
-Outputs:
+- entity creation
+- relationship creation
+- basic graph operations
+- simple persistence
+- retrieving connected knowledge
 
-- Ability to create entities
-- Ability to connect entities
-- Ability to retrieve connected knowledge
+### Outputs
 
-## Phase 4: Graph Navigation and Visualisation
+- create entities
+- connect entities
+- retrieve relationship paths
+- basic lineage-ready data structure
 
-Goal:
+## Phase 4: Knowledge lineage navigation
 
-Make the graph understandable and useful to users.
+### Goal
 
-Focus:
+Make lineage useful to users.
 
-- Viewing connected concepts
-- Navigating from one entity to another
-- Showing relationship context
-- Helping users understand non-linear knowledge
+### Focus
 
-Outputs:
+- trace from decision to supporting knowledge
+- trace from insight to downstream decisions
+- trace from decision to outcome
+- show relationship context
+- identify weak or missing links
 
-- Basic graph navigation
-- Simple visual or structured representation
-- User feedback on comprehension
+### Questions to support
 
-## Phase 5: AI-Assisted Reasoning
+- Why are we doing this?
+- What supports this decision?
+- What changed our direction?
+- What happened afterwards?
+- Where is the reasoning weak?
 
-Goal:
+### Outputs
 
-Explore whether AI can reason usefully over explicit product knowledge.
+- lineage navigation
+- decision traceability views
+- early user feedback
 
-Focus:
+## Phase 5: AI reasoning foundations
 
-- Summarising connected context
-- Identifying missing links
-- Suggesting related entities
-- Explaining decision context
-- Surfacing contradictions or gaps
+### Goal
 
-Outputs:
+Test whether AI can reason usefully over connected product knowledge.
+
+### Focus
+
+- explain decision context
+- identify missing relationships
+- surface unsupported decisions
+- summarise lineage paths
+- suggest related entities
+- detect contradictions
+
+### Outputs
 
 - AI reasoning experiments
-- Validated or invalidated use cases
-- Updated roadmap based on learning
+- useful and non-useful AI use cases
+- updated roadmap based on evidence
 
-## Phase 6: User Validation and Iteration
+## Phase 6: Workflow templates and ontology flexibility
 
-Goal:
+### Goal
 
-Use real feedback to decide whether and how to continue.
+Explore whether teams need configurable workflows and ontologies.
 
-Focus:
+### Focus
 
-- Testing with product managers, designers or stakeholders
-- Observing actual workflows
-- Identifying valuable use cases
-- Refining the domain model
-- Deciding next investment areas
+- Opportunity Solution Trees
+- Jobs To Be Done
+- data product workflows
+- domain-specific workflows
+- configurable relationship types
 
-Outputs:
+### Outputs
 
-- Validation findings
-- Updated product direction
-- Prioritised next phase
+- template concepts
+- ontology flexibility requirements
+- architecture implications
+
+## Phase 7: Trust and governance exploration
+
+### Goal
+
+Understand trust and governance requirements for product knowledge and AI reasoning.
+
+### Focus
+
+- workspace ownership
+- entity ownership
+- classification metadata
+- permission-aware reasoning
+- auditability
+- explainability
+
+### Outputs
+
+- governance requirements
+- trust model
+- long-term architecture considerations
