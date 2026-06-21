@@ -122,6 +122,100 @@ describe('App', () => {
       screen.getByText(/title and description are required/i),
     ).toBeInTheDocument();
   });
+
+  it('creates, shows and removes a valid relationship', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await createEntity({
+      user,
+      title: 'Interview notes',
+      description: 'User interview source material.',
+      type: 'Research',
+    });
+    await createEntity({
+      user,
+      title: 'Users miss onboarding value',
+      description: 'An interpreted research finding.',
+      type: 'Insight',
+    });
+
+    await user.click(screen.getByText('Interview notes'));
+    await addRelationship({
+      user,
+      relationship: 'produces',
+      target: 'Users miss onboarding value',
+    });
+
+    expect(
+      screen.getByText(
+        /research produces insight: interview notes -> users miss onboarding value/i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/outgoing link/i)).toBeInTheDocument();
+
+    await user.click(screen.getByText('Users miss onboarding value'));
+
+    expect(
+      screen.getByText(
+        /research produces insight: interview notes -> users miss onboarding value/i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/incoming link/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /remove/i }));
+
+    expect(screen.queryByText(/research produces insight/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/no relationships yet/i)).toBeInTheDocument();
+  });
+
+  it('filters relationship targets to valid entity types', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await createEntity({
+      user,
+      title: 'Interview notes',
+      description: 'User interview source material.',
+      type: 'Research',
+    });
+    await createEntity({
+      user,
+      title: 'Improve onboarding',
+      description: 'Decision to improve onboarding messaging.',
+      type: 'Decision',
+    });
+
+    await user.click(screen.getByText('Interview notes'));
+
+    const relationshipForm = screen.getByRole('form', {
+      name: /add relationship/i,
+    });
+
+    await user.selectOptions(
+      within(relationshipForm).getByLabelText(/^relationship$/i),
+      'produces',
+    );
+
+    expect(
+      within(relationshipForm).queryByRole('option', {
+        name: /improve onboarding/i,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/create a insight entity before adding this relationship/i),
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(relationshipForm).getByRole('button', {
+        name: /add relationship/i,
+      }),
+    );
+
+    expect(screen.getByText(/choose a target entity/i)).toBeInTheDocument();
+  });
 });
 
 async function createEntity({
@@ -141,4 +235,25 @@ async function createEntity({
   await user.type(within(form).getByLabelText(/^title$/i), title);
   await user.type(within(form).getByLabelText(/^description$/i), description);
   await user.click(within(form).getByRole('button', { name: /create entity/i }));
+}
+
+async function addRelationship({
+  user,
+  relationship,
+  target,
+}: {
+  user: ReturnType<typeof userEvent.setup>;
+  relationship: string;
+  target: string;
+}) {
+  const form = screen.getByRole('form', { name: /add relationship/i });
+
+  await user.selectOptions(
+    within(form).getByLabelText(/^relationship$/i),
+    relationship,
+  );
+  await user.selectOptions(within(form).getByLabelText(/^target entity$/i), target);
+  await user.click(
+    within(form).getByRole('button', { name: /add relationship/i }),
+  );
 }
