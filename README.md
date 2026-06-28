@@ -42,4 +42,6 @@ data locally:
 3. Copy `.env.example` to `.env.local` and set `DATABASE_URL`.
 4. Run `npm run dev`.
 
-`GRAPH_WORKSPACE_ID` is optional and defaults to `alpha-default-workspace`.
+The Phase 5 alpha uses an anonymous httpOnly browser cookie to separate
+workspaces. This is a lightweight testing boundary, not authentication or
+permissioning. Clearing browser cookies creates a new anonymous workspace.

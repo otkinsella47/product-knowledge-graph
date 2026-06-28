@@ -124,6 +124,13 @@ Phase 5 persistence should include:
 Lineage should not be stored as its own table or entity in v0.1. It should
 remain derived by traversing persisted relationships through the graph engine.
 
+For the hosted alpha, workspace separation is currently an anonymous browser
+cookie boundary. The server issues an httpOnly workspace cookie when one is
+missing, then scopes graph API reads and writes to that workspace. This avoids
+one shared public graph for testing, but it is not authentication,
+permissioning, team management or governance. Clearing browser cookies creates
+a new anonymous workspace until a later authenticated workspace model exists.
+
 ## AI Reasoning Layer
 
 The AI reasoning layer should reason over connected product knowledge.

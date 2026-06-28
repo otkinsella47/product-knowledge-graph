@@ -7,7 +7,6 @@ import {
 } from '../persistence/postgresGraphRepository';
 import { handleGraphApiRequest, type GraphApiRequest } from './graphApi';
 
-const defaultWorkspaceId = 'alpha-default-workspace';
 let sharedClient: PostgresQueryClient | undefined;
 
 export type GraphApiServiceOptions = {
@@ -20,10 +19,11 @@ export async function handleConfiguredGraphApiRequest(
   options: GraphApiServiceOptions = {},
 ) {
   const client = options.client ?? getSharedClient();
-  const workspaceId =
-    options.workspaceId ??
-    process.env.GRAPH_WORKSPACE_ID ??
-    defaultWorkspaceId;
+  const workspaceId = options.workspaceId;
+
+  if (!workspaceId) {
+    throw new Error('Workspace id is required for graph API requests.');
+  }
 
   await ensureWorkspace(client, workspaceId);
 

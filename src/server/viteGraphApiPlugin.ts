@@ -1,5 +1,6 @@
 import { type IncomingMessage, type ServerResponse } from 'node:http';
 import { type Plugin } from 'vite';
+import { resolveAlphaWorkspace } from './api/alphaWorkspace';
 import { handleConfiguredGraphApiRequest } from './api/graphApiServices';
 
 export function graphApiPlugin(): Plugin {
@@ -20,11 +21,19 @@ async function handleApiRequest(
   response.setHeader('content-type', 'application/json');
 
   try {
+    const workspace = resolveAlphaWorkspace(request.headers.cookie);
+
+    if (workspace.setCookieHeader) {
+      response.setHeader('set-cookie', workspace.setCookieHeader);
+    }
+
     const body = await readJsonBody(request);
     const result = await handleConfiguredGraphApiRequest({
       method: request.method ?? 'GET',
       path: `/api${request.url ?? ''}`,
       body,
+    }, {
+      workspaceId: workspace.workspaceId,
     });
 
     response.statusCode = result.status;
