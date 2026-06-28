@@ -259,6 +259,234 @@ describe('graph engine', () => {
     );
   });
 
+  it('retrieves a backward lineage path to the knowledge that led to an entity', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const lineage = createDecisionLineage(engine);
+
+    const paths = engine.getBackwardLineagePaths(lineage.decision.id);
+    const fullPath = paths.find((path) => path.endEntity.id === lineage.research.id);
+
+    expect(fullPath).toBeDefined();
+    expect(fullPath?.segments.map((segment) => segment.sourceEntity.type)).toEqual([
+      'research',
+      'insight',
+      'opportunity',
+      'solution',
+      'experiment',
+    ]);
+    expect(fullPath?.segments.at(-1)?.targetEntity.type).toBe('decision');
+    expect(fullPath?.segments.map((segment) => segment.statement)).toEqual([
+      'Research produces Insight: Interview notes -> Users miss onboarding value',
+      'Insight reveals Opportunity: Users miss onboarding value -> Clarify onboarding value',
+      'Opportunity motivates Solution: Clarify onboarding value -> Rewrite first-run messaging',
+      'Solution validated by Experiment: Rewrite first-run messaging -> Prototype test',
+      'Experiment informs Decision: Prototype test -> Improve onboarding',
+    ]);
+  });
+
+  it('retrieves forward lineage paths from an insight to decisions and outcomes', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const insight = engine.createEntity({
+      type: 'insight',
+      title: 'Users miss onboarding value',
+      description: 'An interpreted research finding.',
+    });
+    const decision = engine.createEntity({
+      type: 'decision',
+      title: 'Improve onboarding',
+      description: 'Decision to improve onboarding messaging.',
+    });
+    const outcome = engine.createEntity({
+      type: 'outcome',
+      title: 'Activation improved',
+      description: 'More users understood the product value.',
+    });
+
+    engine.createRelationship({
+      type: 'informs',
+      sourceEntityId: insight.id,
+      targetEntityId: decision.id,
+    });
+    engine.createRelationship({
+      type: 'influences',
+      sourceEntityId: decision.id,
+      targetEntityId: outcome.id,
+    });
+
+    const paths = engine.getForwardLineagePaths(insight.id);
+
+    expect(paths).toHaveLength(2);
+    expect(paths.map((path) => path.endEntity.type)).toEqual([
+      'decision',
+      'outcome',
+    ]);
+    expect(paths.map((path) => path.segments.length)).toEqual([1, 2]);
+    expect(paths.at(-1)?.segments.map((segment) => segment.relationship.type)).toEqual([
+      'informs',
+      'influences',
+    ]);
+  });
+
+  it('retrieves direct lineage paths in either direction', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const insight = engine.createEntity({
+      type: 'insight',
+      title: 'Users miss onboarding value',
+      description: 'An interpreted research finding.',
+    });
+    const decision = engine.createEntity({
+      type: 'decision',
+      title: 'Improve onboarding',
+      description: 'Decision to improve onboarding messaging.',
+    });
+    const relationship = engine.createRelationship({
+      type: 'informs',
+      sourceEntityId: insight.id,
+      targetEntityId: decision.id,
+    });
+
+    expect(engine.getForwardLineagePaths(insight.id)).toMatchObject([
+      {
+        direction: 'forward',
+        startEntity: insight,
+        endEntity: decision,
+        segments: [
+          {
+            sourceEntity: insight,
+            relationship,
+            targetEntity: decision,
+          },
+        ],
+      },
+    ]);
+    expect(engine.getBackwardLineagePaths(decision.id)).toMatchObject([
+      {
+        direction: 'backward',
+        startEntity: decision,
+        endEntity: insight,
+        segments: [
+          {
+            sourceEntity: insight,
+            relationship,
+            targetEntity: decision,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('returns no lineage paths when an entity has no relationships in that direction', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const research = engine.createEntity({
+      type: 'research',
+      title: 'Interview notes',
+      description: 'User interview source material.',
+    });
+    const outcome = engine.createEntity({
+      type: 'outcome',
+      title: 'Activation improved',
+      description: 'More users understood the product value.',
+    });
+
+    expect(engine.getBackwardLineagePaths(research.id)).toEqual([]);
+    expect(engine.getForwardLineagePaths(outcome.id)).toEqual([]);
+    expect(engine.getLineagePaths('missing-id', 'forward')).toEqual([]);
+  });
+
+  it('limits lineage traversal by max depth', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const lineage = createDecisionLineage(engine);
+
+    const paths = engine.getBackwardLineagePaths(lineage.decision.id, {
+      maxDepth: 2,
+    });
+
+    expect(paths.map((path) => path.segments.length)).toEqual([1, 2]);
+    expect(paths.map((path) => path.endEntity.type)).toEqual([
+      'experiment',
+      'solution',
+    ]);
+  });
+
+  it('prevents infinite lineage traversal when ontology-valid cycles exist', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const insight = engine.createEntity({
+      type: 'insight',
+      title: 'Users miss onboarding value',
+      description: 'An interpreted research finding.',
+    });
+    const opportunity = engine.createEntity({
+      type: 'opportunity',
+      title: 'Clarify onboarding value',
+      description: 'A user problem worth addressing.',
+    });
+    const solution = engine.createEntity({
+      type: 'solution',
+      title: 'Rewrite first-run messaging',
+      description: 'A proposed way to clarify the product value.',
+    });
+    const experiment = engine.createEntity({
+      type: 'experiment',
+      title: 'Prototype test',
+      description: 'Test revised first-run messaging.',
+    });
+    const decision = engine.createEntity({
+      type: 'decision',
+      title: 'Improve onboarding',
+      description: 'Decision to improve onboarding messaging.',
+    });
+    const outcome = engine.createEntity({
+      type: 'outcome',
+      title: 'Activation improved',
+      description: 'More users understood the product value.',
+    });
+
+    engine.createRelationship({
+      type: 'reveals',
+      sourceEntityId: insight.id,
+      targetEntityId: opportunity.id,
+    });
+    engine.createRelationship({
+      type: 'motivates',
+      sourceEntityId: opportunity.id,
+      targetEntityId: solution.id,
+    });
+    engine.createRelationship({
+      type: 'validated_by',
+      sourceEntityId: solution.id,
+      targetEntityId: experiment.id,
+    });
+    engine.createRelationship({
+      type: 'informs',
+      sourceEntityId: experiment.id,
+      targetEntityId: decision.id,
+    });
+    engine.createRelationship({
+      type: 'influences',
+      sourceEntityId: decision.id,
+      targetEntityId: outcome.id,
+    });
+    engine.createRelationship({
+      type: 'produces',
+      sourceEntityId: outcome.id,
+      targetEntityId: insight.id,
+    });
+
+    const paths = engine.getForwardLineagePaths(insight.id, { maxDepth: 10 });
+
+    expect(paths).toHaveLength(5);
+    expect(paths.map((path) => path.endEntity.type)).toEqual([
+      'opportunity',
+      'solution',
+      'experiment',
+      'decision',
+      'outcome',
+    ]);
+    expect(
+      paths.some((path) => path.endEntity.id === insight.id),
+    ).toBe(false);
+  });
+
   it('prevents deleting entities while relationships exist', () => {
     const engine = createGraphEngine(createInMemoryGraphRepository());
     const insight = engine.createEntity({
@@ -284,3 +512,71 @@ describe('graph engine', () => {
     expect(engine.deleteEntity(insight.id)).toBe(true);
   });
 });
+
+function createDecisionLineage(engine: ReturnType<typeof createGraphEngine>) {
+  const research = engine.createEntity({
+    type: 'research',
+    title: 'Interview notes',
+    description: 'User interview source material.',
+  });
+  const insight = engine.createEntity({
+    type: 'insight',
+    title: 'Users miss onboarding value',
+    description: 'An interpreted research finding.',
+  });
+  const opportunity = engine.createEntity({
+    type: 'opportunity',
+    title: 'Clarify onboarding value',
+    description: 'A user problem worth addressing.',
+  });
+  const solution = engine.createEntity({
+    type: 'solution',
+    title: 'Rewrite first-run messaging',
+    description: 'A proposed way to clarify the product value.',
+  });
+  const experiment = engine.createEntity({
+    type: 'experiment',
+    title: 'Prototype test',
+    description: 'Test revised first-run messaging.',
+  });
+  const decision = engine.createEntity({
+    type: 'decision',
+    title: 'Improve onboarding',
+    description: 'Decision to improve onboarding messaging.',
+  });
+
+  engine.createRelationship({
+    type: 'produces',
+    sourceEntityId: research.id,
+    targetEntityId: insight.id,
+  });
+  engine.createRelationship({
+    type: 'reveals',
+    sourceEntityId: insight.id,
+    targetEntityId: opportunity.id,
+  });
+  engine.createRelationship({
+    type: 'motivates',
+    sourceEntityId: opportunity.id,
+    targetEntityId: solution.id,
+  });
+  engine.createRelationship({
+    type: 'validated_by',
+    sourceEntityId: solution.id,
+    targetEntityId: experiment.id,
+  });
+  engine.createRelationship({
+    type: 'informs',
+    sourceEntityId: experiment.id,
+    targetEntityId: decision.id,
+  });
+
+  return {
+    research,
+    insight,
+    opportunity,
+    solution,
+    experiment,
+    decision,
+  };
+}
