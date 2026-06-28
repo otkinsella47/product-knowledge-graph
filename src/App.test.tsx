@@ -155,7 +155,7 @@ describe('App', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/outgoing link/i)).toBeInTheDocument();
 
-    await user.click(screen.getByText('Users miss onboarding value'));
+    await selectEntity(user, 'Users miss onboarding value');
 
     expect(
       screen.getByText(
@@ -217,6 +217,128 @@ describe('App', () => {
     expect(screen.getByText(/choose a target entity/i)).toBeInTheDocument();
   });
 
+  it('shows general lineage from a selected insight to downstream decisions and outcomes', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await createEntity({
+      user,
+      title: 'Users lose decision context',
+      description: 'An interpreted research finding.',
+      type: 'Insight',
+    });
+    await createEntity({
+      user,
+      title: 'Preserve decision rationale',
+      description: 'A product opportunity.',
+      type: 'Opportunity',
+    });
+    await createEntity({
+      user,
+      title: 'Decision traceability view',
+      description: 'A proposed way to navigate lineage.',
+      type: 'Solution',
+    });
+    await createEntity({
+      user,
+      title: 'Prototype test',
+      description: 'A test of the proposed traceability view.',
+      type: 'Experiment',
+    });
+    await createEntity({
+      user,
+      title: 'Build lineage navigation',
+      description: 'Decision to build Phase 4 lineage navigation.',
+      type: 'Decision',
+    });
+    await createEntity({
+      user,
+      title: 'Reviewers understood rationale',
+      description: 'Outcome from reviewing the traceability flow.',
+      type: 'Outcome',
+    });
+
+    await selectEntity(user, 'Users lose decision context');
+    await addRelationship({
+      user,
+      relationship: 'reveals',
+      target: 'Preserve decision rationale',
+    });
+    await selectEntity(user, 'Preserve decision rationale');
+    await addRelationship({
+      user,
+      relationship: 'motivates',
+      target: 'Decision traceability view',
+    });
+    await selectEntity(user, 'Decision traceability view');
+    await addRelationship({
+      user,
+      relationship: 'validated_by',
+      target: 'Prototype test',
+    });
+    await selectEntity(user, 'Prototype test');
+    await addRelationship({
+      user,
+      relationship: 'informs',
+      target: 'Build lineage navigation',
+    });
+    await selectEntity(user, 'Build lineage navigation');
+    await addRelationship({
+      user,
+      relationship: 'influences',
+      target: 'Reviewers understood rationale',
+    });
+
+    await selectEntity(user, 'Users lose decision context');
+
+    const lineageSection = screen.getByRole('region', { name: /^lineage$/i });
+
+    expect(
+      within(lineageSection).getByRole('heading', { name: /what led here/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(lineageSection).getByRole('heading', { name: /what followed/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(lineageSection).getByText(/no upstream lineage is connected yet/i),
+    ).toBeInTheDocument();
+    expect(
+      within(lineageSection).getAllByText('Preserve decision rationale').length,
+    ).toBeGreaterThan(0);
+    expect(
+      within(lineageSection).getAllByText('Decision traceability view').length,
+    ).toBeGreaterThan(0);
+    expect(
+      within(lineageSection).getAllByText('Build lineage navigation').length,
+    ).toBeGreaterThan(0);
+    expect(
+      within(lineageSection).getByText('Reviewers understood rationale'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows empty lineage states for an entity with no lineage', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await createEntity({
+      user,
+      title: 'Standalone research',
+      description: 'Research not connected to other knowledge yet.',
+      type: 'Research',
+    });
+
+    const lineageSection = screen.getByRole('region', { name: /^lineage$/i });
+
+    expect(
+      within(lineageSection).getByText(/no upstream lineage is connected yet/i),
+    ).toBeInTheDocument();
+    expect(
+      within(lineageSection).getByText(/no downstream lineage is connected yet/i),
+    ).toBeInTheDocument();
+  });
+
   it('shows decision traceability for a selected decision', async () => {
     const user = userEvent.setup();
 
@@ -265,37 +387,37 @@ describe('App', () => {
       type: 'Outcome',
     });
 
-    await user.click(screen.getByText('Interview notes'));
+    await selectEntity(user, 'Interview notes');
     await addRelationship({
       user,
       relationship: 'produces',
       target: 'Users lose decision context',
     });
-    await user.click(screen.getByText('Users lose decision context'));
+    await selectEntity(user, 'Users lose decision context');
     await addRelationship({
       user,
       relationship: 'reveals',
       target: 'Preserve decision rationale',
     });
-    await user.click(screen.getByText('Preserve decision rationale'));
+    await selectEntity(user, 'Preserve decision rationale');
     await addRelationship({
       user,
       relationship: 'motivates',
       target: 'Decision traceability view',
     });
-    await user.click(screen.getByText('Decision traceability view'));
+    await selectEntity(user, 'Decision traceability view');
     await addRelationship({
       user,
       relationship: 'validated_by',
       target: 'Prototype test',
     });
-    await user.click(screen.getByText('Prototype test'));
+    await selectEntity(user, 'Prototype test');
     await addRelationship({
       user,
       relationship: 'informs',
       target: 'Build lineage navigation',
     });
-    await user.click(screen.getByText('Build lineage navigation'));
+    await selectEntity(user, 'Build lineage navigation');
     await addRelationship({
       user,
       relationship: 'influences',
@@ -392,6 +514,13 @@ async function createEntity({
   await user.type(within(form).getByLabelText(/^title$/i), title);
   await user.type(within(form).getByLabelText(/^description$/i), description);
   await user.click(within(form).getByRole('button', { name: /create entity/i }));
+}
+
+async function selectEntity(
+  user: ReturnType<typeof userEvent.setup>,
+  title: string,
+) {
+  await user.click(screen.getAllByText(title)[0]);
 }
 
 async function addRelationship({

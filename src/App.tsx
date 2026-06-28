@@ -38,6 +38,9 @@ const emptyRelationshipFormState: RelationshipFormState = {
   targetEntityId: '',
 };
 
+const lineageTraversalMaxDepth = 6;
+const lineageDisplayPathLimit = 6;
+
 function App() {
   const graphEngine = useMemo<GraphEngine>(
     () => createGraphEngine(createInMemoryGraphRepository()),
@@ -83,6 +86,20 @@ function App() {
     selectedEntity?.type === 'decision'
       ? graphEngine.getDecisionTraceabilitySummary(selectedEntity.id)
       : undefined;
+  const selectedEntityLineage = selectedEntity
+    ? {
+        backwardPaths: graphEngine
+          .getBackwardLineagePaths(selectedEntity.id, {
+            maxDepth: lineageTraversalMaxDepth,
+          })
+          .slice(0, lineageDisplayPathLimit),
+        forwardPaths: graphEngine
+          .getForwardLineagePaths(selectedEntity.id, {
+            maxDepth: lineageTraversalMaxDepth,
+          })
+          .slice(0, lineageDisplayPathLimit),
+      }
+    : undefined;
 
   const filteredEntities = useMemo(() => {
     const normalisedSearchQuery = searchQuery.trim().toLowerCase();
@@ -638,6 +655,13 @@ function App() {
                     </form>
                   </section>
 
+                  {selectedEntityLineage ? (
+                    <LineageSection
+                      backwardPaths={selectedEntityLineage.backwardPaths}
+                      forwardPaths={selectedEntityLineage.forwardPaths}
+                    />
+                  ) : null}
+
                   {decisionTraceabilitySummary ? (
                     <DecisionTraceabilitySection
                       summary={decisionTraceabilitySummary}
@@ -672,6 +696,39 @@ function App() {
         </section>
       </div>
     </main>
+  );
+}
+
+function LineageSection({
+  backwardPaths,
+  forwardPaths,
+}: {
+  backwardPaths: LineagePath[];
+  forwardPaths: LineagePath[];
+}) {
+  return (
+    <section
+      aria-label="Lineage"
+      className="mt-6 border-t border-slate-200 pt-4"
+    >
+      <div className="flex flex-col gap-1">
+        <h4 className="text-base font-semibold text-slate-950">Lineage</h4>
+        <p className="text-sm leading-6 text-slate-600">
+          Follow how knowledge flows into and out of this entity.
+        </p>
+      </div>
+
+      <TraceabilityPathGroup
+        emptyDescription="No upstream lineage is connected yet."
+        paths={backwardPaths}
+        title="What led here"
+      />
+      <TraceabilityPathGroup
+        emptyDescription="No downstream lineage is connected yet."
+        paths={forwardPaths}
+        title="What followed"
+      />
+    </section>
   );
 }
 
