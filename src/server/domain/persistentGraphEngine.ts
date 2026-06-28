@@ -5,9 +5,9 @@ import {
   type Relationship,
   type UpdateEntityInput,
 } from '../../domain/graph';
-import { GraphEngineError } from '../../domain/graphEngine';
-import { isAllowedRelationship } from '../../domain/ontology';
-import { type PersistentGraphRepository } from '../persistence/postgresGraphRepository';
+import { GraphEngineError } from '../../domain/graphEngine.js';
+import { isAllowedRelationship } from '../../domain/ontology.js';
+import { type PersistentGraphRepository } from '../persistence/postgresGraphRepository.js';
 
 export type PersistentGraphEngine = {
   createEntity(input: CreateEntityInput): Promise<Entity>;

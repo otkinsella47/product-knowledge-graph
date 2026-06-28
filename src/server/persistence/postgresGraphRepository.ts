@@ -13,7 +13,7 @@ import {
 import {
   isValidEntityType,
   isValidRelationshipType,
-} from '../../domain/ontology';
+} from '../../domain/ontology.js';
 
 const { Pool } = pg;
 

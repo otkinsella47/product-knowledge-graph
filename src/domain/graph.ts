@@ -1,4 +1,4 @@
-import { type EntityType, type RelationshipType } from './ontology';
+import { type EntityType, type RelationshipType } from './ontology.js';
 
 export type GraphMetadata = Record<string, string | number | boolean | null>;
 

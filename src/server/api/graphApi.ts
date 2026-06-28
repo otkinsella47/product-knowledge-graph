@@ -5,12 +5,12 @@ import {
   type Relationship,
   type UpdateEntityInput,
 } from '../../domain/graph';
-import { GraphEngineError } from '../../domain/graphEngine';
+import { GraphEngineError } from '../../domain/graphEngine.js';
 import {
   isValidEntityType,
   isValidRelationshipType,
-} from '../../domain/ontology';
-import { type PersistentGraphEngine } from '../domain/persistentGraphEngine';
+} from '../../domain/ontology.js';
+import { type PersistentGraphEngine } from '../domain/persistentGraphEngine.js';
 
 export type GraphApiRequest = {
   method: string;

@@ -5,7 +5,7 @@ import {
   allowedRelationships,
   entityTypeConfigs,
   relationshipTypeConfigs,
-} from './ontology';
+} from './ontology.js';
 
 export const canonicalLineagePath = [
   'research',

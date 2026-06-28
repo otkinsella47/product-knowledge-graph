@@ -1,6 +1,6 @@
 import { type IncomingMessage, type ServerResponse } from 'node:http';
 import { type Plugin } from 'vite';
-import { handleGraphHttpRequest } from './api/httpGraphApiHandler';
+import { handleGraphHttpRequest } from './api/httpGraphApiHandler.js';
 
 export function graphApiPlugin(): Plugin {
   return {

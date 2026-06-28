@@ -1,12 +1,12 @@
-import { createPersistentGraphEngine } from '../domain/persistentGraphEngine';
+import { createPersistentGraphEngine } from '../domain/persistentGraphEngine.js';
 import {
   createPostgresGraphRepository,
   createPostgresPoolFromEnv,
   ensureUserDefaultWorkspace,
   ensureWorkspace,
   type PostgresQueryClient,
-} from '../persistence/postgresGraphRepository';
-import { handleGraphApiRequest, type GraphApiRequest } from './graphApi';
+} from '../persistence/postgresGraphRepository.js';
+import { handleGraphApiRequest, type GraphApiRequest } from './graphApi.js';
 
 let sharedClient: PostgresQueryClient | undefined;
 
