@@ -296,15 +296,7 @@ describe('App', () => {
     const lineageSection = await openLineageTracker(user);
 
     expect(
-      within(lineageSection).getByRole('button', { name: /what led here/i }),
-    ).toBeInTheDocument();
-    expect(
-      within(lineageSection).getByRole('button', { name: /what followed/i }),
-    ).toBeInTheDocument();
-    expect(
-      within(lineageSection).getByText(
-        /nothing leads here yet\. connect research, an experiment or an outcome/i,
-      ),
+      within(lineageSection).getByRole('button', { name: /lineage chains/i }),
     ).toBeInTheDocument();
     expect(
       within(lineageSection).getAllByText('Preserve decision rationale').length,
@@ -320,7 +312,7 @@ describe('App', () => {
     ).toBeInTheDocument();
 
     await user.click(
-      within(lineageSection).getByRole('button', { name: /what followed/i }),
+      within(lineageSection).getByRole('button', { name: /lineage chains/i }),
     );
 
     expect(
@@ -328,7 +320,7 @@ describe('App', () => {
     ).not.toBeInTheDocument();
 
     await user.click(
-      within(lineageSection).getByRole('button', { name: /what followed/i }),
+      within(lineageSection).getByRole('button', { name: /lineage chains/i }),
     );
 
     expect(
@@ -351,12 +343,125 @@ describe('App', () => {
     const lineageSection = await openLineageTracker(user);
 
     expect(
-      within(lineageSection).getByText(/research can start a new knowledge path/i),
+      within(lineageSection).getByText(/no lineage chain is connected yet/i),
     ).toBeInTheDocument();
+  });
+
+  it('shows one complete lineage chain instead of partial subset chains', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await createEntity({
+      user,
+      title: 'Interview notes',
+      description: 'Raw user interview notes.',
+      type: 'Research',
+    });
+    await createEntity({
+      user,
+      title: 'Users need clearer context',
+      description: 'An insight from the interviews.',
+      type: 'Insight',
+    });
+    await createEntity({
+      user,
+      title: 'Preserve rationale',
+      description: 'An opportunity around decision context.',
+      type: 'Opportunity',
+    });
+    await createEntity({
+      user,
+      title: 'Improve decision confidence',
+      description: 'A goal for the team.',
+      type: 'Goal',
+    });
+
+    await selectEntity(user, 'Interview notes');
+    await addRelationship({
+      user,
+      relationship: 'produces',
+      target: 'Users need clearer context',
+    });
+    await selectEntity(user, 'Users need clearer context');
+    await addRelationship({
+      user,
+      relationship: 'reveals',
+      target: 'Preserve rationale',
+    });
+    await selectEntity(user, 'Preserve rationale');
+    await addRelationship({
+      user,
+      relationship: 'supports',
+      target: 'Improve decision confidence',
+    });
+
+    await selectEntity(user, 'Improve decision confidence');
+
+    const lineageSection = await openLineageTracker(user);
+
+    expect(within(lineageSection).getAllByText(/1 chain/i).length).toBeGreaterThan(0);
+    expect(within(lineageSection).getByText('Interview notes')).toBeInTheDocument();
     expect(
-      within(lineageSection).getByText(
-        /connect this research to an insight it produced/i,
-      ),
+      within(lineageSection).getByText('Users need clearer context'),
+    ).toBeInTheDocument();
+    expect(within(lineageSection).getByText('Preserve rationale')).toBeInTheDocument();
+    expect(
+      within(lineageSection).getByText('Improve decision confidence'),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps distinct lineage routes and supports selecting entities from chains', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await createEntity({
+      user,
+      title: 'First insight',
+      description: 'One route to the opportunity.',
+      type: 'Insight',
+    });
+    await createEntity({
+      user,
+      title: 'Second insight',
+      description: 'Another route to the same opportunity.',
+      type: 'Insight',
+    });
+    await createEntity({
+      user,
+      title: 'Shared opportunity',
+      description: 'An opportunity revealed by two insights.',
+      type: 'Opportunity',
+    });
+
+    await selectEntity(user, 'First insight');
+    await addRelationship({
+      user,
+      relationship: 'reveals',
+      target: 'Shared opportunity',
+    });
+    await selectEntity(user, 'Second insight');
+    await addRelationship({
+      user,
+      relationship: 'reveals',
+      target: 'Shared opportunity',
+    });
+
+    await selectEntity(user, 'Shared opportunity');
+
+    const lineageSection = await openLineageTracker(user);
+
+    expect(within(lineageSection).getAllByText(/2 chains/i).length).toBeGreaterThan(0);
+    expect(within(lineageSection).getByText('First insight')).toBeInTheDocument();
+    expect(within(lineageSection).getByText('Second insight')).toBeInTheDocument();
+
+    await user.click(
+      within(lineageSection).getByRole('button', { name: /insight: first insight/i }),
+    );
+
+    expect(
+      screen.getByRole('heading', { name: /first insight/i }),
     ).toBeInTheDocument();
   });
 
@@ -449,17 +554,17 @@ describe('App', () => {
 
     expect(
       within(lineageSection).getByRole('button', {
-        name: /decision support/i,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      within(lineageSection).getByRole('button', {
-        name: /outcomes/i,
+        name: /lineage chains/i,
       }),
     ).toBeInTheDocument();
     expect(
       within(lineageSection).queryByRole('button', {
         name: /what led here/i,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(lineageSection).queryByRole('button', {
+        name: /outcomes/i,
       }),
     ).not.toBeInTheDocument();
     expect(within(lineageSection).getByText(/research:/i)).toBeInTheDocument();
@@ -493,12 +598,7 @@ describe('App', () => {
 
     expect(
       within(lineageSection).getByText(
-        /nothing supports this decision yet/i,
-      ),
-    ).toBeInTheDocument();
-    expect(
-      within(lineageSection).getByText(
-        /no outcome is connected yet/i,
+        /no lineage chain is connected yet/i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -553,8 +653,9 @@ describe('App', () => {
       ),
     ).toBeInTheDocument();
     expect(
-      within(lineageSection).getByText('Reviewers understood decision context'),
-    ).toBeInTheDocument();
+      within(lineageSection).getAllByText('Reviewers understood decision context')
+        .length,
+    ).toBeGreaterThan(0);
     expect(
       within(lineageSection).getByText(/no lineage gaps found/i),
     ).toBeInTheDocument();

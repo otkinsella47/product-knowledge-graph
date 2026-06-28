@@ -56,6 +56,11 @@ const emptyRelationshipFormState: RelationshipFormState = {
 const lineageTraversalMaxDepth = 6;
 const lineageDisplayPathLimit = 6;
 
+type LineageChain = {
+  key: string;
+  segments: LineagePath['segments'];
+};
+
 const demoEntities = [
   {
     key: 'research',
@@ -227,13 +232,11 @@ function App() {
         backwardPaths: graphEngine
           .getBackwardLineagePaths(selectedEntity.id, {
             maxDepth: lineageTraversalMaxDepth,
-          })
-          .slice(0, lineageDisplayPathLimit),
+          }),
         forwardPaths: graphEngine
           .getForwardLineagePaths(selectedEntity.id, {
             maxDepth: lineageTraversalMaxDepth,
-          })
-          .slice(0, lineageDisplayPathLimit),
+          }),
       }
     : undefined;
 
@@ -694,6 +697,7 @@ function App() {
                       decisionSummary={decisionTraceabilitySummary}
                       entity={selectedEntity}
                       forwardPaths={selectedEntityLineage.forwardPaths}
+                      onSelectEntity={handleSelectEntity}
                     />
                   ) : null}
 
@@ -918,13 +922,20 @@ function LineageTrackerSection({
   decisionSummary,
   entity,
   forwardPaths,
+  onSelectEntity,
 }: {
   backwardPaths: LineagePath[];
   decisionSummary?: DecisionTraceabilitySummary;
   entity: Entity;
   forwardPaths: LineagePath[];
+  onSelectEntity: (entityId: string) => void;
 }) {
   const isDecision = entity.type === 'decision';
+  const lineageChains = createLineageChains({
+    backwardPaths,
+    decisionSummary,
+    forwardPaths,
+  }).slice(0, lineageDisplayPathLimit);
 
   return (
     <CollapsibleSection
@@ -937,39 +948,58 @@ function LineageTrackerSection({
           : getLineageDescription(entity.type)
       }
       meta={getLineageTrackerMeta({
-        backwardPaths,
+        chains: lineageChains,
         decisionSummary,
-        forwardPaths,
       })}
       title="Lineage tracker"
     >
-      {decisionSummary ? (
-        <>
-          <TraceabilityPathGroup
-            emptyDescription="Nothing supports this decision yet. Connect an Insight or Experiment that informed it."
-            paths={decisionSummary.supportingLineagePaths}
-            title="Decision support"
-          />
-          <TraceabilityPathGroup
-            emptyDescription="No outcome is connected yet. Connect an Outcome when you know what happened after the decision."
-            paths={decisionSummary.downstreamOutcomePaths}
-            title="Outcomes"
-          />
-          <LineageGapGroup gaps={decisionSummary.lineageGaps} />
-        </>
+      <LineageChainGroup
+        chains={lineageChains}
+        emptyDescription={getLineageEmptyDescription(entity.type)}
+        onSelectEntity={onSelectEntity}
+        selectedEntityId={entity.id}
+      />
+      {decisionSummary ? <LineageGapGroup gaps={decisionSummary.lineageGaps} /> : null}
+    </CollapsibleSection>
+  );
+}
+
+function LineageChainGroup({
+  chains,
+  emptyDescription,
+  onSelectEntity,
+  selectedEntityId,
+}: {
+  chains: LineageChain[];
+  emptyDescription: string;
+  onSelectEntity: (entityId: string) => void;
+  selectedEntityId: string;
+}) {
+  return (
+    <CollapsibleSection
+      className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-2"
+      meta={`${chains.length} ${chains.length === 1 ? 'chain' : 'chains'}`}
+      title="Lineage chains"
+    >
+      {chains.length > 0 ? (
+        <ul className="grid gap-3">
+          {chains.map((chain) => (
+            <li
+              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3"
+              key={chain.key}
+            >
+              <LineageChainView
+                chain={chain}
+                onSelectEntity={onSelectEntity}
+                selectedEntityId={selectedEntityId}
+              />
+            </li>
+          ))}
+        </ul>
       ) : (
-        <>
-          <TraceabilityPathGroup
-            emptyDescription={getLineageEmptyDescription(entity.type, 'backward')}
-            paths={backwardPaths}
-            title="What led here"
-          />
-          <TraceabilityPathGroup
-            emptyDescription={getLineageEmptyDescription(entity.type, 'forward')}
-            paths={forwardPaths}
-            title="What followed"
-          />
-        </>
+        <p className="rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
+          {emptyDescription}
+        </p>
       )}
     </CollapsibleSection>
   );
@@ -999,41 +1029,6 @@ function LineageGapGroup({ gaps }: { gaps: DecisionTraceabilitySummary['lineageG
       ) : (
         <p className="rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
           No lineage gaps found for this decision.
-        </p>
-      )}
-    </CollapsibleSection>
-  );
-}
-
-function TraceabilityPathGroup({
-  emptyDescription,
-  paths,
-  title,
-}: {
-  emptyDescription: string;
-  paths: LineagePath[];
-  title: string;
-}) {
-  return (
-    <CollapsibleSection
-      className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-2"
-      meta={`${paths.length} ${paths.length === 1 ? 'path' : 'paths'}`}
-      title={title}
-    >
-      {paths.length > 0 ? (
-        <ul className="grid gap-3">
-          {paths.map((path) => (
-            <li
-              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3"
-              key={createLineagePathKey(path)}
-            >
-              <LineagePathView path={path} />
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
-          {emptyDescription}
         </p>
       )}
     </CollapsibleSection>
@@ -1096,6 +1091,24 @@ function CollapsibleSection({
 }
 
 function getLineageTrackerMeta({
+  chains,
+  decisionSummary,
+}: {
+  chains: LineageChain[];
+  decisionSummary?: DecisionTraceabilitySummary;
+}) {
+  if (decisionSummary) {
+    return `${chains.length} chains, ${decisionSummary.lineageGaps.length} gaps`;
+  }
+
+  return `${chains.length} ${chains.length === 1 ? 'chain' : 'chains'}`;
+}
+
+function normaliseId(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+function createLineageChains({
   backwardPaths,
   decisionSummary,
   forwardPaths,
@@ -1103,48 +1116,189 @@ function getLineageTrackerMeta({
   backwardPaths: LineagePath[];
   decisionSummary?: DecisionTraceabilitySummary;
   forwardPaths: LineagePath[];
-}) {
-  if (decisionSummary) {
-    return `${decisionSummary.supportingLineagePaths.length} support, ${decisionSummary.downstreamOutcomePaths.length} outcomes, ${decisionSummary.lineageGaps.length} gaps`;
+}): LineageChain[] {
+  const upstreamPaths = removePartialLineagePaths(
+    decisionSummary?.supportingLineagePaths ?? backwardPaths,
+  );
+  const downstreamPaths = removePartialLineagePaths(
+    decisionSummary?.downstreamOutcomePaths ?? forwardPaths,
+  );
+  const chains: LineageChain[] = [];
+
+  if (upstreamPaths.length > 0 && downstreamPaths.length > 0) {
+    upstreamPaths.forEach((upstreamPath) => {
+      downstreamPaths.forEach((downstreamPath) => {
+        chains.push(createLineageChain([
+          ...upstreamPath.segments,
+          ...downstreamPath.segments,
+        ]));
+      });
+    });
+  } else {
+    [...upstreamPaths, ...downstreamPaths].forEach((path) => {
+      chains.push(createLineageChain(path.segments));
+    });
   }
 
-  return `${backwardPaths.length} led here, ${forwardPaths.length} followed`;
+  return removePartialLineageChains(dedupeLineageChains(chains));
 }
 
-function normaliseId(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+function createLineageChain(segments: LineagePath['segments']): LineageChain {
+  return {
+    key: createRelationshipSequenceKey(segments),
+    segments,
+  };
 }
 
-function LineagePathView({ path }: { path: LineagePath }) {
-  const firstSegment = path.segments[0];
+function removePartialLineagePaths(paths: LineagePath[]) {
+  const chains = paths.map((path) => createLineageChain(path.segments));
+  const completeChains = removePartialLineageChains(dedupeLineageChains(chains));
+  const completeKeys = new Set(completeChains.map((chain) => chain.key));
 
-  if (!firstSegment) {
+  return paths.filter((path) =>
+    completeKeys.has(createRelationshipSequenceKey(path.segments)),
+  );
+}
+
+function dedupeLineageChains(chains: LineageChain[]) {
+  const chainsByKey = new Map<string, LineageChain>();
+
+  chains.forEach((chain) => {
+    if (!chainsByKey.has(chain.key)) {
+      chainsByKey.set(chain.key, chain);
+    }
+  });
+
+  return [...chainsByKey.values()];
+}
+
+function removePartialLineageChains(chains: LineageChain[]) {
+  return [...chains]
+    .sort((leftChain, rightChain) => rightChain.segments.length - leftChain.segments.length)
+    .filter((candidateChain, _index, sortedChains) =>
+      !sortedChains.some(
+        (otherChain) =>
+          otherChain !== candidateChain &&
+          otherChain.segments.length > candidateChain.segments.length &&
+          isRelationshipSequenceSubset(candidateChain.segments, otherChain.segments),
+      ),
+    );
+}
+
+function isRelationshipSequenceSubset(
+  candidateSegments: LineagePath['segments'],
+  otherSegments: LineagePath['segments'],
+) {
+  const candidateRelationshipIds = candidateSegments.map(
+    (segment) => segment.relationship.id,
+  );
+  const otherRelationshipIds = otherSegments.map(
+    (segment) => segment.relationship.id,
+  );
+
+  if (
+    candidateRelationshipIds.length === 0 ||
+    candidateRelationshipIds.length >= otherRelationshipIds.length
+  ) {
+    return false;
+  }
+
+  return otherRelationshipIds.some((_, startIndex) =>
+    candidateRelationshipIds.every(
+      (relationshipId, offset) =>
+        otherRelationshipIds[startIndex + offset] === relationshipId,
+    ),
+  );
+}
+
+function createRelationshipSequenceKey(segments: LineagePath['segments']) {
+  return segments.map((segment) => segment.relationship.id).join('-');
+}
+
+function LineageChainView({
+  chain,
+  onSelectEntity,
+  selectedEntityId,
+}: {
+  chain: LineageChain;
+  onSelectEntity: (entityId: string) => void;
+  selectedEntityId: string;
+}) {
+  const chainEntities = getLineageChainEntities(chain);
+
+  if (chainEntities.length === 0) {
     return null;
   }
 
   return (
     <ol className="grid gap-2 text-sm">
-      <li>
-        <EntityStep entity={firstSegment.sourceEntity} label={firstSegment.sourceLabel} />
-      </li>
-      {path.segments.map((segment) => (
-        <li className="grid gap-2" key={segment.relationship.id}>
-          <p className="pl-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {segment.relationshipLabel}
-          </p>
-          <EntityStep entity={segment.targetEntity} label={segment.targetLabel} />
+      {chainEntities.map((chainEntity, index) => (
+        <li className="grid gap-2" key={`${chainEntity.entity.id}-${index}`}>
+          {index > 0 ? (
+            <p className="pl-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {chain.segments[index - 1]?.relationshipLabel}
+            </p>
+          ) : null}
+          <EntityStep
+            entity={chainEntity.entity}
+            isSelected={chainEntity.entity.id === selectedEntityId}
+            label={chainEntity.label}
+            onSelectEntity={onSelectEntity}
+          />
         </li>
       ))}
     </ol>
   );
 }
 
-function EntityStep({ entity, label }: { entity: Entity; label: string }) {
+function getLineageChainEntities(chain: LineageChain) {
+  const firstSegment = chain.segments[0];
+
+  if (!firstSegment) {
+    return [];
+  }
+
+  return [
+    {
+      entity: firstSegment.sourceEntity,
+      label: firstSegment.sourceLabel,
+    },
+    ...chain.segments.map((segment) => ({
+      entity: segment.targetEntity,
+      label: segment.targetLabel,
+    })),
+  ];
+}
+
+function EntityStep({
+  entity,
+  isSelected,
+  label,
+  onSelectEntity,
+}: {
+  entity: Entity;
+  isSelected: boolean;
+  label: string;
+  onSelectEntity: (entityId: string) => void;
+}) {
   return (
-    <p className="leading-6 text-slate-700">
+    <button
+      className={`rounded-md border px-3 py-2 text-left leading-6 ${
+        isSelected
+          ? 'border-cyan-300 bg-cyan-50 text-cyan-950'
+          : 'border-transparent text-slate-700 hover:border-slate-300 hover:bg-white'
+      }`}
+      onClick={() => onSelectEntity(entity.id)}
+      type="button"
+    >
       <span className="font-semibold text-slate-950">{label}:</span>{' '}
       {entity.title}
-    </p>
+      {isSelected ? (
+        <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-cyan-700">
+          Selected
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -1192,49 +1346,24 @@ function getLineageDescription(entityType: EntityType) {
   return descriptions[entityType];
 }
 
-function getLineageEmptyDescription(
-  entityType: EntityType,
-  direction: 'backward' | 'forward',
-) {
-  if (direction === 'backward') {
-    const descriptions: Record<EntityType, string> = {
-      research: 'Nothing leads here yet. Research can start a new knowledge path.',
-      insight:
-        'Nothing leads here yet. Connect Research, an Experiment or an Outcome that produced this Insight.',
-      goal:
-        'Nothing leads here yet. Connect an Opportunity that this Goal supports if relevant.',
-      opportunity:
-        'Nothing leads here yet. Connect an Insight that revealed this Opportunity or a Goal that frames it.',
-      solution:
-        'Nothing leads here yet. Connect the Opportunity that motivated this Solution.',
-      experiment:
-        'Nothing leads here yet. Connect the Solution this Experiment tested.',
-      decision:
-        'Nothing leads here yet. Connect an Insight or Experiment that informed this Decision.',
-      outcome:
-        'Nothing leads here yet. Connect the Decision that influenced this Outcome.',
-    };
-
-    return descriptions[entityType];
-  }
-
+function getLineageEmptyDescription(entityType: EntityType) {
   const descriptions: Record<EntityType, string> = {
     research:
-      'Nothing follows from this yet. Connect this Research to an Insight it produced.',
+      'No lineage chain is connected yet. Connect this Research to an Insight it produced.',
     insight:
-      'Nothing follows from this yet. Connect this Insight to an Opportunity or Decision.',
+      'No lineage chain is connected yet. Connect this Insight to an Opportunity or Decision.',
     goal:
-      'Nothing follows from this yet. Connect this Goal to an Opportunity it frames.',
+      'No lineage chain is connected yet. Connect this Goal to an Opportunity it frames or supports.',
     opportunity:
-      'Nothing follows from this yet. Connect this Opportunity to a Goal or Solution.',
+      'No lineage chain is connected yet. Connect this Opportunity to an Insight, Goal or Solution.',
     solution:
-      'Nothing follows from this yet. Connect this Solution to an Experiment that tested it.',
+      'No lineage chain is connected yet. Connect this Solution to an Opportunity or Experiment.',
     experiment:
-      'Nothing follows from this yet. Connect this Experiment to a Decision or Insight it informed.',
+      'No lineage chain is connected yet. Connect this Experiment to a Solution, Decision or Insight.',
     decision:
-      'Nothing follows from this yet. Connect this Decision to an Outcome when one exists.',
+      'No lineage chain is connected yet. Connect an Insight or Experiment that informed this Decision, or an Outcome when one exists.',
     outcome:
-      'Nothing follows from this yet. Connect this Outcome to an Insight it produced if there is learning to preserve.',
+      'No lineage chain is connected yet. Connect the Decision that influenced this Outcome or an Insight it produced.',
   };
 
   return descriptions[entityType];
@@ -1280,15 +1409,6 @@ function formatRelationshipStatement(
   } ${entityTypeConfigs[targetEntity.type].label}: ${sourceEntity.title} -> ${
     targetEntity.title
   }`;
-}
-
-function createLineagePathKey(path: LineagePath) {
-  return [
-    path.direction,
-    path.startEntity.id,
-    path.endEntity.id,
-    ...path.segments.map((segment) => segment.relationship.id),
-  ].join('-');
 }
 
 function createEmptyGraphEngine() {

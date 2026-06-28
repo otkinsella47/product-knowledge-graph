@@ -7,16 +7,16 @@ workspace.
 ## Manual Checklist
 
 - Load the demo data and select **Build Phase 4 lineage navigation**.
-- Confirm **Lineage tracker > Decision support** shows supporting lineage from
+- Confirm **Lineage tracker > Lineage chains** shows supporting lineage from
   **Interview notes: decision context loss** through Insight, Opportunity,
-  Solution and Experiment.
-- Confirm **Lineage tracker > Outcomes** shows a downstream outcome:
-  **Reviewers understood decision context**.
+  Solution and Experiment to the selected Decision.
+- Confirm the same lineage chain continues to the downstream outcome
+  **Reviewers understood decision context** where connected.
 - Collapse and expand the lineage tracker subsections to confirm the Details
   panel can hide and show lineage content without losing context.
-- Select **Teams lose decision rationale** and confirm **Lineage tracker > What
-  followed** reaches downstream Opportunity, Solution, Experiment, Decision and
-  Outcome entities.
+- Select **Teams lose decision rationale** and confirm **Lineage tracker >
+  Lineage chains** reaches downstream Opportunity, Solution, Experiment,
+  Decision and Outcome entities.
 - Select **Pilot unsupported prioritisation view** and confirm **Lineage tracker
   > Lineage gaps** identifies missing incoming support and no downstream
   outcome.
