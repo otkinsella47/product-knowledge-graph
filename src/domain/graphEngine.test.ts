@@ -518,7 +518,7 @@ describe('graph engine', () => {
         endEntity: outcome,
       },
     ]);
-    expect(summary?.lineageGaps).toEqual([]);
+    expect(summary?.traceabilityGaps).toEqual([]);
   });
 
   it('summarises a decision with direct insight support only', () => {
@@ -558,10 +558,51 @@ describe('graph engine', () => {
       startEntity: decision,
       endEntity: insight,
     });
-    expect(summary?.lineageGaps).toEqual([]);
+    expect(summary?.traceabilityGaps).toEqual([]);
   });
 
-  it('identifies lineage gaps for a decision with no supporting lineage', () => {
+  it('summarises a decision with direct experiment support only', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const experiment = engine.createEntity({
+      type: 'experiment',
+      title: 'Prototype test',
+      description: 'A test of the proposed traceability view.',
+    });
+    const decision = engine.createEntity({
+      type: 'decision',
+      title: 'Build lineage navigation',
+      description: 'Decision to build Phase 4 lineage navigation.',
+    });
+    const outcome = engine.createEntity({
+      type: 'outcome',
+      title: 'Reviewers understood rationale',
+      description: 'Outcome from reviewing the traceability flow.',
+    });
+
+    engine.createRelationship({
+      type: 'informs',
+      sourceEntityId: experiment.id,
+      targetEntityId: decision.id,
+    });
+    engine.createRelationship({
+      type: 'influences',
+      sourceEntityId: decision.id,
+      targetEntityId: outcome.id,
+    });
+
+    const summary = engine.getDecisionTraceabilitySummary(decision.id);
+
+    expect(summary?.supportingLineagePaths).toHaveLength(1);
+    expect(summary?.supportingLineagePaths[0]).toMatchObject({
+      direction: 'backward',
+      startEntity: decision,
+      endEntity: experiment,
+    });
+    expect(summary?.downstreamOutcomePaths).toHaveLength(1);
+    expect(summary?.traceabilityGaps).toEqual([]);
+  });
+
+  it('identifies traceability gaps for a decision with no supporting lineage', () => {
     const engine = createGraphEngine(createInMemoryGraphRepository());
     const decision = engine.createEntity({
       type: 'decision',
@@ -584,7 +625,7 @@ describe('graph engine', () => {
 
     expect(summary?.supportingLineagePaths).toEqual([]);
     expect(summary?.downstreamOutcomePaths).toHaveLength(1);
-    expect(summary?.lineageGaps).toEqual([
+    expect(summary?.traceabilityGaps).toEqual([
       {
         code: 'missing_supporting_lineage',
         label: 'Missing connection',
@@ -607,7 +648,7 @@ describe('graph engine', () => {
 
     expect(summary?.supportingLineagePaths.length).toBeGreaterThan(0);
     expect(summary?.downstreamOutcomePaths).toEqual([]);
-    expect(summary?.lineageGaps).toEqual([
+    expect(summary?.traceabilityGaps).toEqual([
       {
         code: 'missing_downstream_outcome',
         label: 'Missing connection',

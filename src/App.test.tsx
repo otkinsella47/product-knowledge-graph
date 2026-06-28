@@ -578,11 +578,11 @@ describe('App', () => {
       within(lineageSection).getByText('Reviewers understood rationale'),
     ).toBeInTheDocument();
     expect(
-      within(lineageSection).getByText(/no lineage gaps found/i),
+      within(lineageSection).getByText(/no traceability gaps found/i),
     ).toBeInTheDocument();
   });
 
-  it('shows decision lineage gaps in the unified lineage tracker', async () => {
+  it('shows decision traceability gaps in the unified lineage tracker', async () => {
     const user = userEvent.setup();
 
     render(<App />);
@@ -618,7 +618,7 @@ describe('App', () => {
     ).toBeInTheDocument();
 
     await user.click(
-      within(lineageSection).getByRole('button', { name: /lineage gaps/i }),
+      within(lineageSection).getByRole('button', { name: /traceability gaps/i }),
     );
 
     expect(
@@ -657,7 +657,7 @@ describe('App', () => {
         .length,
     ).toBeGreaterThan(0);
     expect(
-      within(lineageSection).getByText(/no lineage gaps found/i),
+      within(lineageSection).getByText(/no traceability gaps found/i),
     ).toBeInTheDocument();
 
     await selectEntity(user, 'Teams lose decision rationale');
@@ -673,7 +673,7 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows demo lineage gaps and can reset the workspace', async () => {
+  it('shows demo traceability gaps and can reset the workspace', async () => {
     const user = userEvent.setup();
 
     render(<App />);

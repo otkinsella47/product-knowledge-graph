@@ -18,7 +18,7 @@ workspace.
   Lineage chains** reaches downstream Opportunity, Solution, Experiment,
   Decision and Outcome entities.
 - Select **Pilot unsupported prioritisation view** and confirm **Lineage tracker
-  > Lineage gaps** identifies missing incoming support and no downstream
+  > Traceability gaps** identifies missing incoming support and no downstream
   outcome.
 - Create a new entity, use **Connect this entity** to add a valid direct
   connection, remove the connection, edit the entity and delete it to confirm

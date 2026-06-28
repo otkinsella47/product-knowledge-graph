@@ -959,7 +959,9 @@ function LineageTrackerSection({
         onSelectEntity={onSelectEntity}
         selectedEntityId={entity.id}
       />
-      {decisionSummary ? <LineageGapGroup gaps={decisionSummary.lineageGaps} /> : null}
+      {decisionSummary ? (
+        <TraceabilityGapGroup gaps={decisionSummary.traceabilityGaps} />
+      ) : null}
     </CollapsibleSection>
   );
 }
@@ -1005,12 +1007,16 @@ function LineageChainGroup({
   );
 }
 
-function LineageGapGroup({ gaps }: { gaps: DecisionTraceabilitySummary['lineageGaps'] }) {
+function TraceabilityGapGroup({
+  gaps,
+}: {
+  gaps: DecisionTraceabilitySummary['traceabilityGaps'];
+}) {
   return (
     <CollapsibleSection
       className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-2"
       meta={`${gaps.length} ${gaps.length === 1 ? 'gap' : 'gaps'}`}
-      title="Lineage gaps"
+      title="Traceability gaps"
     >
       {gaps.length > 0 ? (
         <ul className="grid gap-2">
@@ -1028,7 +1034,7 @@ function LineageGapGroup({ gaps }: { gaps: DecisionTraceabilitySummary['lineageG
         </ul>
       ) : (
         <p className="rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
-          No lineage gaps found for this decision.
+          No traceability gaps found for this decision.
         </p>
       )}
     </CollapsibleSection>
@@ -1098,7 +1104,7 @@ function getLineageTrackerMeta({
   decisionSummary?: DecisionTraceabilitySummary;
 }) {
   if (decisionSummary) {
-    return `${chains.length} chains, ${decisionSummary.lineageGaps.length} gaps`;
+    return `${chains.length} chains, ${decisionSummary.traceabilityGaps.length} gaps`;
   }
 
   return `${chains.length} ${chains.length === 1 ? 'chain' : 'chains'}`;

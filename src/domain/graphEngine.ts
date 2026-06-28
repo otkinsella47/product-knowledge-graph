@@ -79,7 +79,7 @@ export type DecisionTraceabilitySummary = {
   decision: Entity;
   supportingLineagePaths: LineagePath[];
   downstreamOutcomePaths: LineagePath[];
-  lineageGaps: DecisionTraceabilityGap[];
+  traceabilityGaps: DecisionTraceabilityGap[];
 };
 
 export type GraphEngine = {
@@ -321,7 +321,7 @@ function getDecisionTraceabilitySummary(
     decision,
     supportingLineagePaths,
     downstreamOutcomePaths,
-    lineageGaps: getDecisionTraceabilityGaps(
+    traceabilityGaps: getDecisionTraceabilityGaps(
       supportingLineagePaths,
       downstreamOutcomePaths,
     ),
