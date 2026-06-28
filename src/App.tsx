@@ -699,6 +699,7 @@ function App() {
 
                   <CollapsibleSection
                     className="mt-6 border-t border-slate-200 pt-4"
+                    defaultOpen={false}
                     description="Immediate links used to build the lineage paths above."
                     meta={`${selectedEntityRelationships.length} connected`}
                     title="Direct connections"
@@ -929,6 +930,7 @@ function LineageTrackerSection({
     <CollapsibleSection
       ariaLabel="Lineage tracker"
       className="mt-6 border-t border-slate-200 pt-4"
+      defaultOpen={false}
       description={
         isDecision
           ? 'Track what supports this decision, what happened afterwards and where connections are missing.'
@@ -1042,6 +1044,7 @@ function CollapsibleSection({
   ariaLabel,
   children,
   className,
+  defaultOpen = true,
   description,
   meta,
   title,
@@ -1049,11 +1052,12 @@ function CollapsibleSection({
   ariaLabel?: string;
   children: ReactNode;
   className: string;
+  defaultOpen?: boolean;
   description?: string;
   meta?: string;
   title: string;
 }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const contentId = `${normaliseId(title)}-content`;
 
   return (

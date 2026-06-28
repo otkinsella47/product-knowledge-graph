@@ -189,6 +189,7 @@ describe('App', () => {
     });
 
     await user.click(screen.getByText('Interview notes'));
+    await openDirectConnections(user);
 
     const relationshipForm = screen.getByRole('form', {
       name: /connect this entity/i,
@@ -292,9 +293,7 @@ describe('App', () => {
 
     await selectEntity(user, 'Users lose decision context');
 
-    const lineageSection = screen.getByRole('region', {
-      name: /lineage tracker/i,
-    });
+    const lineageSection = await openLineageTracker(user);
 
     expect(
       within(lineageSection).getByRole('button', { name: /what led here/i }),
@@ -349,9 +348,7 @@ describe('App', () => {
       type: 'Research',
     });
 
-    const lineageSection = screen.getByRole('region', {
-      name: /lineage tracker/i,
-    });
+    const lineageSection = await openLineageTracker(user);
 
     expect(
       within(lineageSection).getByText(/research can start a new knowledge path/i),
@@ -448,9 +445,7 @@ describe('App', () => {
       target: 'Reviewers understood rationale',
     });
 
-    const lineageSection = screen.getByRole('region', {
-      name: /lineage tracker/i,
-    });
+    const lineageSection = await openLineageTracker(user);
 
     expect(
       within(lineageSection).getByRole('button', {
@@ -494,9 +489,7 @@ describe('App', () => {
       type: 'Decision',
     });
 
-    const lineageSection = screen.getByRole('region', {
-      name: /lineage tracker/i,
-    });
+    const lineageSection = await openLineageTracker(user);
 
     expect(
       within(lineageSection).getByText(
@@ -552,9 +545,7 @@ describe('App', () => {
       screen.getAllByText('Reviewers understood decision context').length,
     ).toBeGreaterThan(0);
 
-    const lineageSection = screen.getByRole('region', {
-      name: /lineage tracker/i,
-    });
+    const lineageSection = await openLineageTracker(user);
 
     expect(
       within(lineageSection).getByText(
@@ -570,9 +561,7 @@ describe('App', () => {
 
     await selectEntity(user, 'Teams lose decision rationale');
 
-    const insightLineageSection = screen.getByRole('region', {
-      name: /lineage tracker/i,
-    });
+    const insightLineageSection = await openLineageTracker(user);
 
     expect(
       within(insightLineageSection).getAllByText('Build Phase 4 lineage navigation')
@@ -591,9 +580,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /load demo data/i }));
     await selectEntity(user, 'Pilot unsupported prioritisation view');
 
-    const lineageSection = screen.getByRole('region', {
-      name: /lineage tracker/i,
-    });
+    const lineageSection = await openLineageTracker(user);
 
     expect(
       within(lineageSection).getByText(
@@ -651,6 +638,8 @@ async function addRelationship({
   relationship: string;
   target: string;
 }) {
+  await openDirectConnections(user);
+
   const form = screen.getByRole('form', { name: /connect this entity/i });
 
   await user.selectOptions(
@@ -661,4 +650,34 @@ async function addRelationship({
   await user.click(
     within(form).getByRole('button', { name: /connect entity/i }),
   );
+}
+
+async function openLineageTracker(user: ReturnType<typeof userEvent.setup>) {
+  const lineageSection = screen.getByRole('region', {
+    name: /lineage tracker/i,
+  });
+  const toggle = within(lineageSection).getByRole('button', {
+    name: /lineage tracker/i,
+  });
+
+  if (toggle.getAttribute('aria-expanded') === 'false') {
+    await user.click(toggle);
+  }
+
+  return lineageSection;
+}
+
+async function openDirectConnections(user: ReturnType<typeof userEvent.setup>) {
+  const connectionsSection = screen.getByRole('region', {
+    name: /direct connections/i,
+  });
+  const toggle = within(connectionsSection).getByRole('button', {
+    name: /direct connections/i,
+  });
+
+  if (toggle.getAttribute('aria-expanded') === 'false') {
+    await user.click(toggle);
+  }
+
+  return connectionsSection;
 }
