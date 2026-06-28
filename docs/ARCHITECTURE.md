@@ -109,9 +109,31 @@ Possible future implementations:
 
 The project should not commit to a heavy persistence choice before the core product value is validated.
 
+For the Phase 5 hosted alpha, the persistence layer should use a minimal
+relational model with graph-like tables for entities and relationships. The
+goal is durable product knowledge for real user testing, not production-scale
+infrastructure.
+
+Phase 5 persistence should include:
+
+- persisted entities
+- persisted relationships
+- a workspace or project ownership field
+- created and updated timestamps
+
+Lineage should not be stored as its own table or entity in v0.1. It should
+remain derived by traversing persisted relationships through the graph engine.
+
+For the hosted alpha, workspace separation is currently an anonymous browser
+cookie boundary. The server issues an httpOnly workspace cookie when one is
+missing, then scopes graph API reads and writes to that workspace. This avoids
+one shared public graph for testing, but it is not authentication,
+permissioning, team management or governance. Clearing browser cookies creates
+a new anonymous workspace until a later authenticated workspace model exists.
+
 ## AI Reasoning Layer
 
-A future AI reasoning layer should reason over connected product knowledge.
+The AI reasoning layer should reason over connected product knowledge.
 
 Responsibilities may include:
 
@@ -124,6 +146,12 @@ Responsibilities may include:
 - suggesting relevant entities or relationships
 
 This should not be overbuilt before useful lineage workflows exist.
+
+For the Phase 5 hosted alpha, AI integration should be server-side and
+read-only. The hosted app may use a limited project-owner LLM key configured in
+server environment variables. Local developer and self-host setups may use BYOK
+through environment variables. LLM keys must not be committed or exposed in
+client-side code.
 
 ## Trust and governance
 

@@ -1,4 +1,10 @@
-import { type FormEvent, type ReactNode, useMemo, useState } from 'react';
+import {
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   type CreateEntityInput,
   type Entity,
@@ -7,7 +13,6 @@ import {
 import {
   createGraphEngine,
   type DecisionTraceabilitySummary,
-  type GraphEngine,
   type LineagePath,
 } from './domain/graphEngine';
 import { createInMemoryGraphRepository } from './domain/graphRepository';
@@ -20,6 +25,10 @@ import {
   getAllowedRelationshipsForSource,
   relationshipTypeConfigs,
 } from './domain/ontology';
+import {
+  createFetchGraphApiClient,
+  type GraphApiClient,
+} from './graphApiClient';
 
 type EntityFormState = {
   type: EntityType;
@@ -60,6 +69,8 @@ type LineageChain = {
   key: string;
   segments: LineagePath['segments'];
 };
+
+type WorkspaceMode = 'persisted' | 'demo';
 
 const demoEntities = [
   {
@@ -170,11 +181,11 @@ const demoRelationships = [
   },
 ] as const satisfies readonly DemoRelationshipInput[];
 
-function App() {
-  const [graphEngine, setGraphEngine] = useState<GraphEngine>(() =>
-    createEmptyGraphEngine(),
-  );
-
+function App({
+  apiClient = createFetchGraphApiClient(),
+}: {
+  apiClient?: GraphApiClient;
+}) {
   const [entities, setEntities] = useState<Entity[]>([]);
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [selectedEntityId, setSelectedEntityId] = useState<string | undefined>();
@@ -186,6 +197,80 @@ function App() {
   const [typeFilter, setTypeFilter] = useState<EntityType | 'all'>('all');
   const [error, setError] = useState<string | undefined>();
   const [relationshipError, setRelationshipError] = useState<string | undefined>();
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('persisted');
+  const [isLoadingGraph, setIsLoadingGraph] = useState(true);
+  const [loadError, setLoadError] = useState<string | undefined>();
+
+  const graphEngine = useMemo(
+    () => createGraphEngineFromData(entities, relationships),
+    [entities, relationships],
+  );
+
+  function applyPersistedGraph(
+    nextEntities: Entity[],
+    nextRelationships: Relationship[],
+  ) {
+    setEntities(nextEntities);
+    setRelationships(nextRelationships);
+    setSelectedEntityId((currentSelectedEntityId) =>
+      currentSelectedEntityId &&
+      nextEntities.some((entity) => entity.id === currentSelectedEntityId)
+        ? currentSelectedEntityId
+        : nextEntities.at(0)?.id,
+    );
+    setWorkspaceMode('persisted');
+  }
+
+  async function loadPersistedGraph() {
+    setIsLoadingGraph(true);
+    setLoadError(undefined);
+
+    try {
+      const graph = await apiClient.loadGraph();
+
+      applyPersistedGraph(graph.entities, graph.relationships);
+    } catch {
+      setLoadError('Could not load saved graph data.');
+      setEntities([]);
+      setRelationships([]);
+      setSelectedEntityId(undefined);
+    } finally {
+      setIsLoadingGraph(false);
+    }
+  }
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    apiClient
+      .loadGraph()
+      .then((graph) => {
+        if (!isCurrent) {
+          return;
+        }
+
+        applyPersistedGraph(graph.entities, graph.relationships);
+      })
+      .catch(() => {
+        if (!isCurrent) {
+          return;
+        }
+
+        setLoadError('Could not load saved graph data.');
+        setEntities([]);
+        setRelationships([]);
+        setSelectedEntityId(undefined);
+      })
+      .finally(() => {
+        if (isCurrent) {
+          setIsLoadingGraph(false);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [apiClient]);
 
   const selectedEntity = entities.find((entity) => entity.id === selectedEntityId);
   const editingEntity = entities.find((entity) => entity.id === editingEntityId);
@@ -254,25 +339,7 @@ function App() {
     });
   }, [entities, searchQuery, typeFilter]);
 
-  function syncEntities(nextSelectedEntityId?: string) {
-    const nextEntities = graphEngine.listEntities();
-
-    setEntities(nextEntities);
-
-    if (nextSelectedEntityId) {
-      setSelectedEntityId(nextSelectedEntityId);
-      return;
-    }
-
-    if (
-      selectedEntityId &&
-      !nextEntities.some((entity) => entity.id === selectedEntityId)
-    ) {
-      setSelectedEntityId(nextEntities.at(0)?.id);
-    }
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const title = formState.title.trim();
@@ -283,6 +350,22 @@ function App() {
       return;
     }
 
+    try {
+      if (workspaceMode === 'demo') {
+        saveEntityLocally(title, description);
+      } else {
+        await saveEntityPersistently(title, description);
+      }
+
+      setError(undefined);
+      setEditingEntityId(undefined);
+      setFormState(emptyFormState);
+    } catch {
+      setError('Could not save this entity.');
+    }
+  }
+
+  function saveEntityLocally(title: string, description: string) {
     if (editingEntityId) {
       const updatedEntity = graphEngine.updateEntity(editingEntityId, {
         title,
@@ -290,23 +373,48 @@ function App() {
       });
 
       if (updatedEntity) {
-        syncEntities(updatedEntity.id);
+        setEntities(graphEngine.listEntities());
+        setSelectedEntityId(updatedEntity.id);
       }
-    } else {
-      const entity = graphEngine.createEntity({
-        type: formState.type,
+
+      return;
+    }
+
+    const entity = graphEngine.createEntity({
+      type: formState.type,
+      title,
+      description,
+    });
+
+    setEntities(graphEngine.listEntities());
+    setSelectedEntityId(entity.id);
+  }
+
+  async function saveEntityPersistently(title: string, description: string) {
+    if (editingEntityId) {
+      const updatedEntity = await apiClient.updateEntity(editingEntityId, {
         title,
         description,
       });
 
-      if (entity) {
-        syncEntities(entity.id);
-      }
+      setEntities((currentEntities) =>
+        currentEntities.map((entity) =>
+          entity.id === updatedEntity.id ? updatedEntity : entity,
+        ),
+      );
+      setSelectedEntityId(updatedEntity.id);
+
+      return;
     }
 
-    setError(undefined);
-    setEditingEntityId(undefined);
-    setFormState(emptyFormState);
+    const entity = await apiClient.createEntity({
+      type: formState.type,
+      title,
+      description,
+    });
+
+    setEntities((currentEntities) => [...currentEntities, entity]);
+    setSelectedEntityId(entity.id);
   }
 
   function handleEdit(entity: Entity) {
@@ -325,9 +433,27 @@ function App() {
     setError(undefined);
   }
 
-  function handleDelete(entityId: string) {
+  async function handleDelete(entityId: string) {
     try {
-      graphEngine.deleteEntity(entityId);
+      if (workspaceMode === 'demo') {
+        graphEngine.deleteEntity(entityId);
+        const nextEntities = graphEngine.listEntities();
+
+        setEntities(nextEntities);
+        updateSelectedEntityAfterDelete(entityId, nextEntities);
+      } else {
+        await apiClient.deleteEntity(entityId);
+        setEntities((currentEntities) => {
+          const nextEntities = currentEntities.filter(
+            (entity) => entity.id !== entityId,
+          );
+
+          updateSelectedEntityAfterDelete(entityId, nextEntities);
+
+          return nextEntities;
+        });
+      }
+
       setEditingEntityId((currentEntityId) =>
         currentEntityId === entityId ? undefined : currentEntityId,
       );
@@ -335,7 +461,6 @@ function App() {
         editingEntityId === entityId ? emptyFormState : currentFormState,
       );
       setError(undefined);
-      syncEntities();
     } catch {
       setError('Remove relationships before deleting this entity.');
     }
@@ -347,7 +472,7 @@ function App() {
     setRelationshipError(undefined);
   }
 
-  function handleRelationshipSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleRelationshipSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!selectedEntity) {
@@ -365,12 +490,17 @@ function App() {
       return;
     }
 
-    try {
-      const relationship = graphEngine.createRelationship({
+    const relationshipInput = {
         type: relationshipFormState.relationship,
         sourceEntityId: selectedEntity.id,
         targetEntityId: relationshipFormState.targetEntityId,
-      });
+      };
+
+    try {
+      const relationship =
+        workspaceMode === 'demo'
+          ? graphEngine.createRelationship(relationshipInput)
+          : await apiClient.createRelationship(relationshipInput);
 
       setRelationships((currentRelationships) => [
         ...currentRelationships,
@@ -383,28 +513,38 @@ function App() {
     }
   }
 
-  function handleDeleteRelationship(relationshipId: string) {
-    graphEngine.deleteRelationship(relationshipId);
-    setRelationships((currentRelationships) =>
-      currentRelationships.filter(
-        (relationship) => relationship.id !== relationshipId,
-      ),
-    );
-    setRelationshipError(undefined);
+  async function handleDeleteRelationship(relationshipId: string) {
+    try {
+      if (workspaceMode === 'demo') {
+        graphEngine.deleteRelationship(relationshipId);
+      } else {
+        await apiClient.deleteRelationship(relationshipId);
+      }
+
+      setRelationships((currentRelationships) =>
+        currentRelationships.filter(
+          (relationship) => relationship.id !== relationshipId,
+        ),
+      );
+      setRelationshipError(undefined);
+    } catch {
+      setRelationshipError('Could not remove this relationship.');
+    }
   }
 
   function handleLoadDemoData() {
     const {
-      engine: demoGraphEngine,
       entities: demoGraphEntities,
       relationships: demoGraphRelationships,
       selectedEntityId: demoSelectedEntityId,
     } = createDemoGraph();
 
-    setGraphEngine(demoGraphEngine);
     setEntities(demoGraphEntities);
     setRelationships(demoGraphRelationships);
     setSelectedEntityId(demoSelectedEntityId);
+    setWorkspaceMode('demo');
+    setIsLoadingGraph(false);
+    setLoadError(undefined);
     setEditingEntityId(undefined);
     setFormState(emptyFormState);
     setRelationshipFormState(emptyRelationshipFormState);
@@ -415,10 +555,12 @@ function App() {
   }
 
   function handleResetWorkspace() {
-    setGraphEngine(createEmptyGraphEngine());
-    setEntities([]);
-    setRelationships([]);
-    setSelectedEntityId(undefined);
+    if (workspaceMode === 'demo') {
+      void loadPersistedGraph();
+    } else {
+      setSelectedEntityId(entities.at(0)?.id);
+    }
+
     setEditingEntityId(undefined);
     setFormState(emptyFormState);
     setRelationshipFormState(emptyRelationshipFormState);
@@ -426,6 +568,15 @@ function App() {
     setTypeFilter('all');
     setError(undefined);
     setRelationshipError(undefined);
+  }
+
+  function updateSelectedEntityAfterDelete(
+    deletedEntityId: string,
+    nextEntities: Entity[],
+  ) {
+    if (selectedEntityId === deletedEntityId) {
+      setSelectedEntityId(nextEntities.at(0)?.id);
+    }
   }
 
   return (
@@ -441,7 +592,9 @@ function App() {
                 Entity workspace
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                Capture product knowledge objects using the fixed v0.1 ontology.
+                {workspaceMode === 'demo'
+                  ? 'Explore demo lineage locally without changing saved alpha data.'
+                  : 'Capture product knowledge objects using the fixed v0.1 ontology.'}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -617,7 +770,25 @@ function App() {
                 </p>
               </div>
 
-              {filteredEntities.length > 0 ? (
+              {isLoadingGraph ? (
+                <EmptyState
+                  title="Loading saved graph"
+                  description="Retrieving persisted product knowledge."
+                />
+              ) : loadError ? (
+                <div className="p-4">
+                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {loadError}
+                  </p>
+                  <button
+                    className="mt-3 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                    onClick={() => void loadPersistedGraph()}
+                    type="button"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : filteredEntities.length > 0 ? (
                 <ul className="divide-y divide-slate-200">
                   {filteredEntities.map((entity) => (
                     <li key={entity.id}>
@@ -1417,8 +1588,20 @@ function formatRelationshipStatement(
   }`;
 }
 
+function createGraphEngineFromData(
+  entities: Entity[],
+  relationships: Relationship[],
+) {
+  return createGraphEngine(
+    createInMemoryGraphRepository({
+      entities,
+      relationships,
+    }),
+  );
+}
+
 function createEmptyGraphEngine() {
-  return createGraphEngine(createInMemoryGraphRepository());
+  return createGraphEngineFromData([], []);
 }
 
 function createDemoGraph() {

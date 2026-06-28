@@ -4,6 +4,7 @@ export type GraphMetadata = Record<string, string | number | boolean | null>;
 
 export type Entity = {
   id: string;
+  workspaceId?: string;
   type: EntityType;
   title: string;
   description: string;
@@ -14,6 +15,7 @@ export type Entity = {
 
 export type Relationship = {
   id: string;
+  workspaceId?: string;
   type: RelationshipType;
   sourceEntityId: string;
   targetEntityId: string;

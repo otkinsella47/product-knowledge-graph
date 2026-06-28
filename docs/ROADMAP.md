@@ -112,26 +112,72 @@ Make lineage useful to users.
 - decision traceability views
 - early user feedback
 
-## Phase 5: AI reasoning foundations
+## Phase 5: Hosted alpha foundation and AI reasoning
 
 ### Goal
 
-Test whether AI can reason usefully over connected product knowledge.
+Build the persistent hosted alpha needed for real user testing, then test
+whether AI can reason usefully over saved connected product knowledge.
 
 ### Focus
 
+- hosted alpha persistence
+- entities and relationships stored over time
+- basic workspace/user separation
+- graph API routes
+- frontend persistence integration
+- reasoning context assembly
+- deterministic missing-link signals
+- server-side LLM endpoint
+- read-only in-app AI reasoning assistant
 - explain decision context
 - identify missing relationships
 - surface unsupported decisions
 - summarise lineage paths
-- suggest related entities
-- detect contradictions
 
 ### Outputs
 
-- AI reasoning experiments
+- persistent hosted alpha
+- local developer/self-host setup notes
+- lightweight in-app AI reasoning experiment
 - useful and non-useful AI use cases
 - updated roadmap based on evidence
+
+### Sequencing
+
+Part A should establish the hosted alpha foundation:
+
+- minimal persistence
+- persisted entities and relationships
+- basic workspace/user separation
+- graph API routes
+- frontend persistence integration
+- deterministic lineage and missing-link context assembly
+
+Part B should add AI reasoning on top of that foundation:
+
+- server-side LLM endpoint
+- read-only in-app assistant
+- grounded answers over connected graph context
+- hosted alpha usage messaging
+- local BYOK documentation for developers and self-hosters
+
+Phase 5 should avoid:
+
+- complex permissions
+- team roles
+- billing
+- enterprise governance
+- audit logs
+- configurable ontology
+- graph visualisation
+- vector databases
+- embeddings
+- AI memory
+- autonomous agents
+- AI graph mutation
+- generic PRD or user-story generation
+- relationship strength or evidence-quality scoring
 
 ## Phase 6: Workflow templates and ontology flexibility
 

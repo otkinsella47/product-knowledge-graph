@@ -2,10 +2,18 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import App from './App';
+import {
+  type CreateEntityInput,
+  type CreateRelationshipInput,
+  type UpdateEntityInput,
+} from './domain/graph';
+import { createGraphEngine } from './domain/graphEngine';
+import { createInMemoryGraphRepository } from './domain/graphRepository';
+import { type GraphApiClient } from './graphApiClient';
 
 describe('App', () => {
-  it('renders the entity management workspace', () => {
-    render(<App />);
+  it('renders the entity management workspace', async () => {
+    renderApp();
 
     expect(
       screen.getByRole('heading', { name: /entity workspace/i }),
@@ -13,13 +21,13 @@ describe('App', () => {
     expect(
       screen.getByRole('form', { name: /create entity/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/no entities yet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no entities yet/i)).toBeInTheDocument();
   });
 
   it('creates and views an entity', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await createEntity({
       user,
@@ -38,7 +46,7 @@ describe('App', () => {
   it('searches and filters entities', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await createEntity({
       user,
@@ -68,7 +76,7 @@ describe('App', () => {
   it('edits an entity', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await createEntity({
       user,
@@ -96,7 +104,7 @@ describe('App', () => {
   it('deletes an entity', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await createEntity({
       user,
@@ -114,7 +122,7 @@ describe('App', () => {
   it('validates required title and description fields', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await user.click(screen.getByRole('button', { name: /create entity/i }));
 
@@ -126,7 +134,7 @@ describe('App', () => {
   it('creates, shows and removes a valid relationship', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await createEntity({
       user,
@@ -170,10 +178,50 @@ describe('App', () => {
     expect(screen.getByText(/no direct connections yet/i)).toBeInTheDocument();
   });
 
+  it('loads saved entities and relationships after remounting', async () => {
+    const user = userEvent.setup();
+    const apiClient = createTestGraphApiClient();
+    const { unmount } = renderApp(apiClient);
+
+    await createEntity({
+      user,
+      title: 'Interview notes',
+      description: 'User interview source material.',
+      type: 'Research',
+    });
+    await createEntity({
+      user,
+      title: 'Users miss onboarding value',
+      description: 'An interpreted research finding.',
+      type: 'Insight',
+    });
+    await user.click(screen.getByText('Interview notes'));
+    await addRelationship({
+      user,
+      relationship: 'produces',
+      target: 'Users miss onboarding value',
+    });
+
+    unmount();
+    renderApp(apiClient);
+
+    expect((await screen.findAllByText('Interview notes')).length).toBeGreaterThan(
+      0,
+    );
+    await selectEntity(user, 'Interview notes');
+    await openDirectConnections(user);
+
+    expect(
+      screen.getByText(
+        /research produces insight: interview notes -> users miss onboarding value/i,
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('filters relationship targets to valid entity types', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await createEntity({
       user,
@@ -218,10 +266,21 @@ describe('App', () => {
     expect(screen.getByText(/choose an entity to connect to/i)).toBeInTheDocument();
   });
 
+  it('shows a loading error when saved graph data cannot be loaded', async () => {
+    const apiClient = createFailingGraphApiClient();
+
+    renderApp(apiClient);
+
+    expect(
+      await screen.findByText(/could not load saved graph data/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
+
   it('shows general lineage from a selected insight to downstream decisions and outcomes', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await createEntity({
       user,
@@ -331,7 +390,7 @@ describe('App', () => {
   it('shows empty lineage states for an entity with no lineage', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await createEntity({
       user,
@@ -350,7 +409,7 @@ describe('App', () => {
   it('shows one complete lineage chain instead of partial subset chains', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await createEntity({
       user,
@@ -414,7 +473,7 @@ describe('App', () => {
   it('keeps distinct lineage routes and supports selecting entities from chains', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await createEntity({
       user,
@@ -468,7 +527,7 @@ describe('App', () => {
   it('shows decision support and outcomes in the unified lineage tracker', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await createEntity({
       user,
@@ -585,7 +644,7 @@ describe('App', () => {
   it('shows decision traceability gaps in the unified lineage tracker', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await createEntity({
       user,
@@ -631,7 +690,7 @@ describe('App', () => {
   it('loads demo data for Phase 4 lineage validation', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await user.click(screen.getByRole('button', { name: /load demo data/i }));
 
@@ -676,7 +735,7 @@ describe('App', () => {
   it('shows demo traceability gaps and can reset the workspace', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    renderApp();
 
     await user.click(screen.getByRole('button', { name: /load demo data/i }));
     await selectEntity(user, 'Pilot unsupported prioritisation view');
@@ -703,6 +762,82 @@ describe('App', () => {
     expect(screen.getByText(/no entities yet/i)).toBeInTheDocument();
   });
 });
+
+function renderApp(apiClient = createTestGraphApiClient()) {
+  return render(<App apiClient={apiClient} />);
+}
+
+function createTestGraphApiClient(): GraphApiClient {
+  const repository = createInMemoryGraphRepository({
+    createId: createTestIdGenerator(),
+    now: () => '2026-06-21T10:00:00.000Z',
+  });
+  const engine = createGraphEngine(repository);
+
+  return {
+    async loadGraph() {
+      return {
+        entities: engine.listEntities(),
+        relationships: repository.listRelationships(),
+      };
+    },
+
+    async createEntity(input: CreateEntityInput) {
+      return engine.createEntity(input);
+    },
+
+    async updateEntity(id: string, input: UpdateEntityInput) {
+      const entity = engine.updateEntity(id, input);
+
+      if (!entity) {
+        throw new Error('Entity not found.');
+      }
+
+      return entity;
+    },
+
+    async deleteEntity(id: string) {
+      engine.deleteEntity(id);
+    },
+
+    async createRelationship(input: CreateRelationshipInput) {
+      return engine.createRelationship(input);
+    },
+
+    async deleteRelationship(id: string) {
+      engine.deleteRelationship(id);
+    },
+  };
+}
+
+function createFailingGraphApiClient(): GraphApiClient {
+  return {
+    loadGraph() {
+      return Promise.reject(new Error('Load failed.'));
+    },
+    createEntity() {
+      return Promise.reject(new Error('Load failed.'));
+    },
+    updateEntity() {
+      return Promise.reject(new Error('Load failed.'));
+    },
+    deleteEntity() {
+      return Promise.reject(new Error('Load failed.'));
+    },
+    createRelationship() {
+      return Promise.reject(new Error('Load failed.'));
+    },
+    deleteRelationship() {
+      return Promise.reject(new Error('Load failed.'));
+    },
+  };
+}
+
+function createTestIdGenerator(): () => string {
+  let nextId = 1;
+
+  return () => `test-id-${nextId++}`;
+}
 
 async function createEntity({
   user,

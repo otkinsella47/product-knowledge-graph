@@ -155,3 +155,25 @@ The knowledge graph is the primary implementation approach for now, not the prod
 ### Consequences
 
 The project should stay focused on decision quality, lineage and explainability rather than graph features for their own sake.
+
+## ADR-014: Phase 5 prioritises hosted alpha persistence before AI
+
+### Decision
+
+Phase 5 should first build the persistent hosted alpha needed for real user
+testing, then add lightweight read-only AI reasoning over saved graph context.
+
+### Rationale
+
+AI reasoning cannot be meaningfully tested while the product graph is only
+browser-memory state. Users need to create real product knowledge, connect
+entities, refresh or return later, and inspect lineage before AI can reason over
+the graph in a grounded way.
+
+### Consequences
+
+Part A of Phase 5 focuses on minimal persistence, graph APIs, frontend
+persistence integration, basic workspace separation and deterministic lineage
+context. Part B adds server-side LLM integration and a read-only in-app
+assistant. Local BYOK is supported for developers and self-hosters, but is not
+part of normal hosted product onboarding.
