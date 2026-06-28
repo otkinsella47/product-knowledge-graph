@@ -1,5 +1,5 @@
 import { type IncomingMessage, type ServerResponse } from 'node:http';
-import { handleGraphHttpRequest } from '../src/server/api/httpGraphApiHandler';
+import { handleGraphHttpRequest } from '../src/server/api/httpGraphApiHandler.js';
 
 export default async function handler(
   request: IncomingMessage & {

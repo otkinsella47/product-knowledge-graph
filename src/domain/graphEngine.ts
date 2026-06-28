@@ -5,12 +5,12 @@ import {
   type Relationship,
   type UpdateEntityInput,
 } from './graph';
-import { type GraphRepository } from './graphRepository';
+import { type GraphRepository } from './graphRepository.js';
 import {
   entityTypeConfigs,
   isAllowedRelationship,
   relationshipTypeConfigs,
-} from './ontology';
+} from './ontology.js';
 
 export class GraphEngineError extends Error {
   constructor(message: string) {

@@ -1,5 +1,5 @@
 import { type IncomingMessage, type ServerResponse } from 'node:http';
-import { createPostgresPoolFromEnv } from '../../src/server/persistence/postgresGraphRepository';
+import { createPostgresPoolFromEnv } from '../../src/server/persistence/postgresGraphRepository.js';
 
 type DbHealthResponse = {
   ok: boolean;

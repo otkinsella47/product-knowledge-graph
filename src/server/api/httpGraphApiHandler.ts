@@ -1,9 +1,9 @@
-import { resolveAlphaAuth } from './alphaAuth';
-import { resolveAlphaWorkspace } from './alphaWorkspace';
+import { resolveAlphaAuth } from './alphaAuth.js';
+import { resolveAlphaWorkspace } from './alphaWorkspace.js';
 import {
   handleConfiguredGraphApiRequest,
   type GraphApiServiceOptions,
-} from './graphApiServices';
+} from './graphApiServices.js';
 
 export type GraphHttpRequest = {
   method: string;

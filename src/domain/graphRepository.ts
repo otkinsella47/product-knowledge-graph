@@ -9,7 +9,7 @@ import {
 import {
   isValidEntityType,
   isValidRelationshipType,
-} from './ontology';
+} from './ontology.js';
 
 export type GraphRepository = {
   createEntity(input: CreateEntityInput): Entity;
