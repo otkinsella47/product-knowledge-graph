@@ -4,6 +4,35 @@ import { handleGraphHttpRequest } from './httpGraphApiHandler';
 import { type PostgresQueryClient } from '../persistence/postgresGraphRepository';
 
 describe('graph HTTP API handler', () => {
+  it('requires alpha auth when anonymous workspaces are disabled', async () => {
+    const previousAuthEnabled = process.env.ALPHA_AUTH_ENABLED;
+    const previousAnonymousEnabled =
+      process.env.ALPHA_ANONYMOUS_WORKSPACE_ENABLED;
+
+    process.env.ALPHA_AUTH_ENABLED = 'true';
+    process.env.ALPHA_ANONYMOUS_WORKSPACE_ENABLED = 'false';
+
+    try {
+      await expect(
+        handleGraphHttpRequest({
+          method: 'GET',
+          path: '/api/entities',
+        }),
+      ).resolves.toMatchObject({
+        status: 401,
+        body: {
+          error: 'Alpha access is required for hosted graph persistence.',
+        },
+      });
+    } finally {
+      restoreEnv('ALPHA_AUTH_ENABLED', previousAuthEnabled);
+      restoreEnv(
+        'ALPHA_ANONYMOUS_WORKSPACE_ENABLED',
+        previousAnonymousEnabled,
+      );
+    }
+  });
+
   it('returns a clear configuration error when DATABASE_URL is missing', async () => {
     const previousDatabaseUrl = process.env.DATABASE_URL;
 
@@ -23,11 +52,7 @@ describe('graph HTTP API handler', () => {
         },
       });
     } finally {
-      if (previousDatabaseUrl === undefined) {
-        delete process.env.DATABASE_URL;
-      } else {
-        process.env.DATABASE_URL = previousDatabaseUrl;
-      }
+      restoreEnv('DATABASE_URL', previousDatabaseUrl);
     }
   });
 
@@ -65,5 +90,13 @@ class MissingSchemaClient implements PostgresQueryClient {
     error.code = '42P01';
 
     return Promise.reject(error);
+  }
+}
+
+function restoreEnv(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
   }
 }

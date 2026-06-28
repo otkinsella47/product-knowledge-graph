@@ -42,15 +42,30 @@ data locally:
 3. Copy `.env.example` to `.env.local` and set `DATABASE_URL`.
 4. Run `npm run dev`.
 
-The Phase 5 alpha uses an anonymous httpOnly browser cookie to separate
-workspaces. This is a lightweight testing boundary, not authentication or
-permissioning. Clearing browser cookies creates a new anonymous workspace.
+Local development can use an anonymous httpOnly browser cookie to separate
+workspaces when `ALPHA_AUTH_ENABLED` is not set to `true`. This is a lightweight
+fallback for local and anonymous testing, not the hosted alpha identity model.
+Clearing browser cookies creates a new anonymous workspace.
 
 ## Deployed Persistence
 
 The hosted alpha expects graph API routes to run server-side. On Vercel, set
 `DATABASE_URL` as an environment variable and apply `db/schema.sql` to that
 database before using the app.
+
+For hosted alpha testing, enable minimal alpha authentication:
+
+1. Set `ALPHA_AUTH_ENABLED=true`.
+2. Set `ALPHA_ANONYMOUS_WORKSPACE_ENABLED=false`.
+3. Configure either `ALPHA_ACCESS_TOKEN` with `ALPHA_USER_EMAIL`, or
+   `ALPHA_AUTH_TOKENS` as comma-separated `token:email` pairs.
+4. Share an alpha URL that includes `?alpha_access_token=<token>` once. The
+   server stores that token in an httpOnly cookie and maps it to the user's
+   default workspace on later visits.
+
+This is intentionally not a full SaaS account system. It gives each alpha user
+one recoverable default workspace without roles, teams, billing or enterprise
+permissions.
 
 If `DATABASE_URL` is missing, or if the schema has not been applied, `/api/*`
 graph routes return a diagnostic error instead of silently falling back to

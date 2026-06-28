@@ -93,12 +93,7 @@ async function request<ResponseBody>(
 ): Promise<ResponseBody> {
   const response = await fetcher(path, {
     method: options.method ?? 'GET',
-    headers:
-      options.body === undefined
-        ? undefined
-        : {
-            'content-type': 'application/json',
-          },
+    headers: createRequestHeaders(options.body),
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
 
@@ -112,6 +107,33 @@ async function request<ResponseBody>(
   }
 
   return response.json() as Promise<ResponseBody>;
+}
+
+function createRequestHeaders(body: unknown): HeadersInit | undefined {
+  const headers: Record<string, string> = {};
+  const alphaAccessToken = getAlphaAccessTokenFromLocation();
+
+  if (body !== undefined) {
+    headers['content-type'] = 'application/json';
+  }
+
+  if (alphaAccessToken) {
+    headers['x-alpha-access-token'] = alphaAccessToken;
+  }
+
+  return Object.keys(headers).length > 0 ? headers : undefined;
+}
+
+function getAlphaAccessTokenFromLocation(): string | undefined {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  return (
+    new URLSearchParams(window.location.search)
+      .get('alpha_access_token')
+      ?.trim() || undefined
+  );
 }
 
 async function readErrorMessage(response: Response): Promise<string> {

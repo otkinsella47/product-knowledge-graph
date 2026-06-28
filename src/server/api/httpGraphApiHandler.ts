@@ -1,3 +1,4 @@
+import { resolveAlphaAuth } from './alphaAuth';
 import { resolveAlphaWorkspace } from './alphaWorkspace';
 import {
   handleConfiguredGraphApiRequest,
@@ -8,6 +9,8 @@ export type GraphHttpRequest = {
   method: string;
   path: string;
   cookieHeader?: string | string[];
+  authorizationHeader?: string | string[];
+  accessTokenHeader?: string | string[];
   body?: unknown;
 };
 
@@ -26,6 +29,46 @@ export async function handleGraphHttpRequest(
   };
 
   try {
+    const auth = resolveAlphaAuth({
+      authorizationHeader: request.authorizationHeader,
+      accessTokenHeader: request.accessTokenHeader,
+      cookieHeader: request.cookieHeader,
+    });
+
+    if (auth.status === 'unauthorized') {
+      return {
+        status: 401,
+        headers,
+        body: {
+          error: auth.message,
+        },
+      };
+    }
+
+    if (auth.status === 'authenticated') {
+      if (auth.setCookieHeader) {
+        headers['set-cookie'] = auth.setCookieHeader;
+      }
+
+      const result = await handleConfiguredGraphApiRequest(
+        {
+          method: request.method,
+          path: request.path,
+          body: request.body,
+        },
+        {
+          ...options,
+          authenticatedUserEmail: auth.email,
+        },
+      );
+
+      return {
+        status: result.status,
+        headers,
+        body: result.body,
+      };
+    }
+
     const workspace = resolveAlphaWorkspace(request.cookieHeader);
 
     if (workspace.setCookieHeader) {

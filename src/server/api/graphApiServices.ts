@@ -2,6 +2,7 @@ import { createPersistentGraphEngine } from '../domain/persistentGraphEngine';
 import {
   createPostgresGraphRepository,
   createPostgresPoolFromEnv,
+  ensureUserDefaultWorkspace,
   ensureWorkspace,
   type PostgresQueryClient,
 } from '../persistence/postgresGraphRepository';
@@ -10,6 +11,7 @@ import { handleGraphApiRequest, type GraphApiRequest } from './graphApi';
 let sharedClient: PostgresQueryClient | undefined;
 
 export type GraphApiServiceOptions = {
+  authenticatedUserEmail?: string;
   client?: PostgresQueryClient;
   workspaceId?: string;
 };
@@ -19,13 +21,21 @@ export async function handleConfiguredGraphApiRequest(
   options: GraphApiServiceOptions = {},
 ) {
   const client = options.client ?? getSharedClient();
-  const workspaceId = options.workspaceId;
+  const workspaceId = options.authenticatedUserEmail
+    ? (
+        await ensureUserDefaultWorkspace(client, {
+          email: options.authenticatedUserEmail,
+        })
+      ).workspaceId
+    : options.workspaceId;
 
   if (!workspaceId) {
     throw new Error('Workspace id is required for graph API requests.');
   }
 
-  await ensureWorkspace(client, workspaceId);
+  if (!options.authenticatedUserEmail) {
+    await ensureWorkspace(client, workspaceId);
+  }
 
   const repository = createPostgresGraphRepository({
     client,

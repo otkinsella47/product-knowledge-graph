@@ -1,9 +1,20 @@
+create table if not exists users (
+  id text primary key,
+  email text not null unique,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists workspaces (
   id text primary key,
+  owner_user_id text references users(id) on delete restrict,
   name text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table if exists workspaces
+  add column if not exists owner_user_id text references users(id) on delete restrict;
 
 create table if not exists entities (
   id text primary key,
@@ -57,6 +68,9 @@ create table if not exists relationships (
 
 create index if not exists entities_workspace_id_idx
   on entities(workspace_id);
+
+create index if not exists workspaces_owner_user_id_idx
+  on workspaces(owner_user_id);
 
 create index if not exists relationships_workspace_id_idx
   on relationships(workspace_id);

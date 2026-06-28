@@ -158,6 +158,66 @@ describe('configured graph API workspace scoping', () => {
       },
     });
   });
+
+  it('scopes graph data to an authenticated user default workspace', async () => {
+    const client = new FakeWorkspaceClient();
+
+    await handleConfiguredGraphApiRequest(
+      {
+        method: 'POST',
+        path: '/api/entities',
+        body: {
+          type: 'research',
+          title: 'Authenticated user research',
+          description: 'Visible to the signed-in alpha user.',
+        },
+      },
+      {
+        client,
+        authenticatedUserEmail: 'ALPHA@example.com',
+      },
+    );
+
+    await expect(
+      handleConfiguredGraphApiRequest(
+        {
+          method: 'GET',
+          path: '/api/entities',
+        },
+        {
+          client,
+          authenticatedUserEmail: 'alpha@example.com',
+        },
+      ),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: {
+        entities: [
+          {
+            title: 'Authenticated user research',
+          },
+        ],
+      },
+    });
+
+    await expect(
+      handleConfiguredGraphApiRequest(
+        {
+          method: 'GET',
+          path: '/api/entities',
+        },
+        {
+          client,
+          authenticatedUserEmail: 'other@example.com',
+        },
+      ),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: {
+        entities: [],
+      },
+    });
+  });
 });
 
 type FakeEntityRow = QueryResultRow & {
@@ -181,10 +241,27 @@ type FakeRelationshipRow = QueryResultRow & {
   updated_at: string;
 };
 
+type FakeUserRow = QueryResultRow & {
+  id: string;
+  email: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type FakeWorkspaceRow = QueryResultRow & {
+  id: string;
+  owner_user_id: string | null;
+  name: string;
+  created_at: string;
+  updated_at: string;
+};
+
 class FakeWorkspaceClient implements PostgresQueryClient {
   private nextId = 1;
   private readonly entities = new Map<string, FakeEntityRow>();
   private readonly relationships = new Map<string, FakeRelationshipRow>();
+  private readonly users = new Map<string, FakeUserRow>();
+  private readonly workspaces = new Map<string, FakeWorkspaceRow>();
 
   async query<Row extends QueryResultRow = QueryResultRow>(
     text: string,
@@ -192,8 +269,66 @@ class FakeWorkspaceClient implements PostgresQueryClient {
   ): Promise<{ rows: Row[]; rowCount: number }> {
     const queryText = text.replace(/\s+/g, ' ').trim().toLowerCase();
 
+    if (
+      queryText.startsWith('insert into workspaces') &&
+      queryText.includes('owner_user_id') &&
+      !queryText.includes('values ($1, null')
+    ) {
+      const existingWorkspace = [...this.workspaces.values()].find(
+        (workspace) => workspace.owner_user_id === values[1],
+      );
+
+      if (existingWorkspace) {
+        return createResult([asRow<Row>(existingWorkspace)]);
+      }
+
+      const row: FakeWorkspaceRow = {
+        id: `workspace-${this.nextId++}`,
+        owner_user_id: String(values[1]),
+        name: String(values[2]),
+        created_at: String(values[3]),
+        updated_at: String(values[3]),
+      };
+
+      this.workspaces.set(row.id, row);
+
+      return createResult([asRow<Row>(row)]);
+    }
+
     if (queryText.startsWith('insert into workspaces')) {
       return createResult([]);
+    }
+
+    if (queryText.startsWith('insert into users')) {
+      const existingUser = [...this.users.values()].find(
+        (user) => user.email === values[1],
+      );
+
+      if (existingUser) {
+        return createResult([asRow<Row>(existingUser)]);
+      }
+
+      const row: FakeUserRow = {
+        id: `user-${this.nextId++}`,
+        email: String(values[1]),
+        created_at: String(values[2]),
+        updated_at: String(values[2]),
+      };
+
+      this.users.set(row.id, row);
+
+      return createResult([asRow<Row>(row)]);
+    }
+
+    if (
+      queryText.startsWith('select * from workspaces') &&
+      queryText.includes('where owner_user_id = $1')
+    ) {
+      return createResult(
+        [...this.workspaces.values()]
+          .filter((workspace) => workspace.owner_user_id === values[0])
+          .map((workspace) => asRow<Row>(workspace)),
+      );
     }
 
     if (queryText.startsWith('insert into entities')) {

@@ -177,3 +177,25 @@ persistence integration, basic workspace separation and deterministic lineage
 context. Part B adds server-side LLM integration and a read-only in-app
 assistant. Local BYOK is supported for developers and self-hosters, but is not
 part of normal hosted product onboarding.
+
+## ADR-015: Hosted alpha uses minimal authenticated default workspaces
+
+### Decision
+
+The hosted alpha should use a minimal authenticated user to default workspace
+model instead of relying on anonymous workspace cookies as the primary identity
+boundary.
+
+### Rationale
+
+Users need to return over time and reliably access saved graph data. Anonymous
+workspace cookies avoid one shared public graph, but they are fragile across
+cookie clearing, browsers and devices.
+
+### Consequences
+
+Each alpha access token maps to a server-side user email. The server creates or
+reuses one default workspace for that user and scopes graph API reads and writes
+to it. Anonymous cookie workspaces remain available only as a local or anonymous
+fallback. This does not add roles, teams, billing, enterprise permissions or a
+full SaaS account system.

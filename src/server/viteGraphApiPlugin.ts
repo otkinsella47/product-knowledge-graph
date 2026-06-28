@@ -25,6 +25,8 @@ async function handleApiRequest(
       method: request.method ?? 'GET',
       path: `/api${request.url ?? ''}`,
       cookieHeader: request.headers.cookie,
+      authorizationHeader: request.headers.authorization,
+      accessTokenHeader: request.headers['x-alpha-access-token'],
       body,
     });
 

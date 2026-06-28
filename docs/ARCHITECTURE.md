@@ -124,12 +124,19 @@ Phase 5 persistence should include:
 Lineage should not be stored as its own table or entity in v0.1. It should
 remain derived by traversing persisted relationships through the graph engine.
 
-For the hosted alpha, workspace separation is currently an anonymous browser
-cookie boundary. The server issues an httpOnly workspace cookie when one is
-missing, then scopes graph API reads and writes to that workspace. This avoids
-one shared public graph for testing, but it is not authentication,
-permissioning, team management or governance. Clearing browser cookies creates
-a new anonymous workspace until a later authenticated workspace model exists.
+For the hosted alpha, workspace separation uses a minimal authenticated user to
+default workspace model. An alpha access token maps to a user email on the
+server. The server ensures that user has one default workspace, then scopes
+graph API reads and writes to that workspace. This is intentionally not a full
+SaaS account system: it does not add roles, teams, billing, enterprise
+permissions or governance.
+
+Anonymous browser-cookie workspace separation remains available as a temporary
+local or anonymous fallback. The server can issue an httpOnly workspace cookie
+when no authenticated alpha user is present, then scope graph API reads and
+writes to that anonymous workspace. Clearing browser cookies creates a new
+anonymous workspace, so this fallback should not be the primary hosted alpha
+path for users who need to return over time.
 
 ## AI Reasoning Layer
 

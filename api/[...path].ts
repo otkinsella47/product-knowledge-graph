@@ -12,6 +12,8 @@ export default async function handler(
     method: request.method ?? 'GET',
     path: createApiPath(request),
     cookieHeader: request.headers.cookie,
+    authorizationHeader: request.headers.authorization,
+    accessTokenHeader: request.headers['x-alpha-access-token'],
     body: request.body ?? (await readJsonBody(request)),
   });
 
