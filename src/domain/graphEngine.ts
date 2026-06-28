@@ -64,6 +64,24 @@ export type LineagePath = {
   segments: LineagePathSegment[];
 };
 
+export type DecisionTraceabilityGapCode =
+  | 'missing_supporting_lineage'
+  | 'missing_upstream_knowledge'
+  | 'missing_downstream_outcome';
+
+export type DecisionTraceabilityGap = {
+  code: DecisionTraceabilityGapCode;
+  label: string;
+  message: string;
+};
+
+export type DecisionTraceabilitySummary = {
+  decision: Entity;
+  supportingLineagePaths: LineagePath[];
+  downstreamOutcomePaths: LineagePath[];
+  lineageGaps: DecisionTraceabilityGap[];
+};
+
 export type GraphEngine = {
   createEntity(input: CreateEntityInput): Entity;
   updateEntity(id: string, input: UpdateEntityInput): Entity | undefined;
@@ -96,6 +114,9 @@ export type GraphEngine = {
     direction: LineageDirection,
     options?: LineageTraversalOptions,
   ): LineagePath[];
+  getDecisionTraceabilitySummary(
+    decisionId: string,
+  ): DecisionTraceabilitySummary | undefined;
   validateRelationship(input: CreateRelationshipInput): void;
 };
 
@@ -245,6 +266,10 @@ export function createGraphEngine(repository: GraphRepository): GraphEngine {
       return getLineagePaths(repository, entityId, direction, options);
     },
 
+    getDecisionTraceabilitySummary(decisionId) {
+      return getDecisionTraceabilitySummary(repository, decisionId);
+    },
+
     validateRelationship(input) {
       const sourceEntity = repository.getEntity(input.sourceEntityId);
 
@@ -269,6 +294,83 @@ export function createGraphEngine(repository: GraphRepository): GraphEngine {
       }
     },
   };
+}
+
+function getDecisionTraceabilitySummary(
+  repository: GraphRepository,
+  decisionId: string,
+): DecisionTraceabilitySummary | undefined {
+  const decision = repository.getEntity(decisionId);
+
+  if (!decision || decision.type !== 'decision') {
+    return undefined;
+  }
+
+  const supportingLineagePaths = getLineagePaths(
+    repository,
+    decisionId,
+    'backward',
+  );
+  const downstreamOutcomePaths = getLineagePaths(
+    repository,
+    decisionId,
+    'forward',
+  ).filter((path) => path.endEntity.type === 'outcome');
+
+  return {
+    decision,
+    supportingLineagePaths,
+    downstreamOutcomePaths,
+    lineageGaps: getDecisionTraceabilityGaps(
+      supportingLineagePaths,
+      downstreamOutcomePaths,
+    ),
+  };
+}
+
+function getDecisionTraceabilityGaps(
+  supportingLineagePaths: LineagePath[],
+  downstreamOutcomePaths: LineagePath[],
+): DecisionTraceabilityGap[] {
+  const gaps: DecisionTraceabilityGap[] = [];
+
+  if (supportingLineagePaths.length === 0) {
+    gaps.push({
+      code: 'missing_supporting_lineage',
+      label: 'Missing connection',
+      message: 'No incoming supporting lineage is connected to this decision.',
+    });
+  }
+
+  if (!hasUpstreamKnowledgeEntity(supportingLineagePaths)) {
+    gaps.push({
+      code: 'missing_upstream_knowledge',
+      label: 'Lineage gap',
+      message:
+        'No upstream Research, Insight or Experiment is connected to this decision.',
+    });
+  }
+
+  if (downstreamOutcomePaths.length === 0) {
+    gaps.push({
+      code: 'missing_downstream_outcome',
+      label: 'Missing connection',
+      message: 'No downstream Outcome is connected to this decision.',
+    });
+  }
+
+  return gaps;
+}
+
+function hasUpstreamKnowledgeEntity(paths: LineagePath[]): boolean {
+  return paths.some((path) =>
+    path.segments.some(
+      (segment) =>
+        segment.sourceEntity.type === 'research' ||
+        segment.sourceEntity.type === 'insight' ||
+        segment.sourceEntity.type === 'experiment',
+    ),
+  );
 }
 
 function getLineagePaths(

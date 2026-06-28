@@ -487,6 +487,152 @@ describe('graph engine', () => {
     ).toBe(false);
   });
 
+  it('summarises a well-supported decision with upstream lineage and downstream outcome', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const lineage = createDecisionLineage(engine);
+    const outcome = engine.createEntity({
+      type: 'outcome',
+      title: 'Activation improved',
+      description: 'More users understood the product value.',
+    });
+
+    engine.createRelationship({
+      type: 'influences',
+      sourceEntityId: lineage.decision.id,
+      targetEntityId: outcome.id,
+    });
+
+    const summary = engine.getDecisionTraceabilitySummary(lineage.decision.id);
+
+    expect(summary?.decision).toEqual(lineage.decision);
+    expect(summary?.supportingLineagePaths.length).toBeGreaterThan(0);
+    expect(
+      summary?.supportingLineagePaths.some(
+        (path) => path.endEntity.id === lineage.research.id,
+      ),
+    ).toBe(true);
+    expect(summary?.downstreamOutcomePaths).toMatchObject([
+      {
+        direction: 'forward',
+        startEntity: lineage.decision,
+        endEntity: outcome,
+      },
+    ]);
+    expect(summary?.lineageGaps).toEqual([]);
+  });
+
+  it('summarises a decision with direct insight support only', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const insight = engine.createEntity({
+      type: 'insight',
+      title: 'Users miss onboarding value',
+      description: 'An interpreted research finding.',
+    });
+    const decision = engine.createEntity({
+      type: 'decision',
+      title: 'Improve onboarding',
+      description: 'Decision to improve onboarding messaging.',
+    });
+    const outcome = engine.createEntity({
+      type: 'outcome',
+      title: 'Activation improved',
+      description: 'More users understood the product value.',
+    });
+
+    engine.createRelationship({
+      type: 'informs',
+      sourceEntityId: insight.id,
+      targetEntityId: decision.id,
+    });
+    engine.createRelationship({
+      type: 'influences',
+      sourceEntityId: decision.id,
+      targetEntityId: outcome.id,
+    });
+
+    const summary = engine.getDecisionTraceabilitySummary(decision.id);
+
+    expect(summary?.supportingLineagePaths).toHaveLength(1);
+    expect(summary?.supportingLineagePaths[0]).toMatchObject({
+      direction: 'backward',
+      startEntity: decision,
+      endEntity: insight,
+    });
+    expect(summary?.lineageGaps).toEqual([]);
+  });
+
+  it('identifies lineage gaps for a decision with no supporting lineage', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const decision = engine.createEntity({
+      type: 'decision',
+      title: 'Improve onboarding',
+      description: 'Decision to improve onboarding messaging.',
+    });
+    const outcome = engine.createEntity({
+      type: 'outcome',
+      title: 'Activation improved',
+      description: 'More users understood the product value.',
+    });
+
+    engine.createRelationship({
+      type: 'influences',
+      sourceEntityId: decision.id,
+      targetEntityId: outcome.id,
+    });
+
+    const summary = engine.getDecisionTraceabilitySummary(decision.id);
+
+    expect(summary?.supportingLineagePaths).toEqual([]);
+    expect(summary?.downstreamOutcomePaths).toHaveLength(1);
+    expect(summary?.lineageGaps).toEqual([
+      {
+        code: 'missing_supporting_lineage',
+        label: 'Missing connection',
+        message: 'No incoming supporting lineage is connected to this decision.',
+      },
+      {
+        code: 'missing_upstream_knowledge',
+        label: 'Lineage gap',
+        message:
+          'No upstream Research, Insight or Experiment is connected to this decision.',
+      },
+    ]);
+  });
+
+  it('identifies a missing downstream outcome for a decision', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const lineage = createDecisionLineage(engine);
+
+    const summary = engine.getDecisionTraceabilitySummary(lineage.decision.id);
+
+    expect(summary?.supportingLineagePaths.length).toBeGreaterThan(0);
+    expect(summary?.downstreamOutcomePaths).toEqual([]);
+    expect(summary?.lineageGaps).toEqual([
+      {
+        code: 'missing_downstream_outcome',
+        label: 'Missing connection',
+        message: 'No downstream Outcome is connected to this decision.',
+      },
+    ]);
+  });
+
+  it('returns undefined for invalid decision traceability entity IDs', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+
+    expect(engine.getDecisionTraceabilitySummary('missing-id')).toBe(undefined);
+  });
+
+  it('returns undefined when decision traceability is requested for a non-decision entity', () => {
+    const engine = createGraphEngine(createInMemoryGraphRepository());
+    const insight = engine.createEntity({
+      type: 'insight',
+      title: 'Users miss onboarding value',
+      description: 'An interpreted research finding.',
+    });
+
+    expect(engine.getDecisionTraceabilitySummary(insight.id)).toBe(undefined);
+  });
+
   it('prevents deleting entities while relationships exist', () => {
     const engine = createGraphEngine(createInMemoryGraphRepository());
     const insight = engine.createEntity({
