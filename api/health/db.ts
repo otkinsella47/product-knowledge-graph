@@ -1,4 +1,5 @@
 import { type IncomingMessage, type ServerResponse } from 'node:http';
+import { createPostgresPoolFromEnv } from '../../src/server/persistence/postgresGraphRepository';
 
 type DbHealthResponse = {
   ok: boolean;
@@ -33,13 +34,10 @@ export default async function handler(
       databaseUrlConfigured: checks.databaseUrlConfigured,
     });
 
-    const persistence = await import(
-      '../../src/server/persistence/postgresGraphRepository'
-    );
     checks.persistenceModuleImported = true;
-    console.error('DB health persistence module imported');
+    console.error('DB health persistence module available');
 
-    pool = persistence.createPostgresPoolFromEnv();
+    pool = createPostgresPoolFromEnv();
     checks.poolCreated = true;
     console.error('DB health pool created');
 
