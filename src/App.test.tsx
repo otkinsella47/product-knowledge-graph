@@ -495,6 +495,84 @@ describe('App', () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it('loads demo data for Phase 4 lineage validation', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /load demo data/i }));
+
+    expect(
+      screen.getAllByText('Build Phase 4 lineage navigation').length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText('Pilot unsupported prioritisation view').length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText('Reviewers understood decision context').length,
+    ).toBeGreaterThan(0);
+
+    const traceabilitySection = screen.getByRole('region', {
+      name: /decision traceability/i,
+    });
+
+    expect(
+      within(traceabilitySection).getByText(
+        'Interview notes: decision context loss',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(traceabilitySection).getByText('Reviewers understood decision context'),
+    ).toBeInTheDocument();
+    expect(
+      within(traceabilitySection).getByText(/no lineage gaps found/i),
+    ).toBeInTheDocument();
+
+    await selectEntity(user, 'Teams lose decision rationale');
+
+    const lineageSection = screen.getByRole('region', { name: /^lineage$/i });
+
+    expect(
+      within(lineageSection).getAllByText('Build Phase 4 lineage navigation')
+        .length,
+    ).toBeGreaterThan(0);
+    expect(
+      within(lineageSection).getByText('Reviewers understood decision context'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows demo lineage gaps and can reset the workspace', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /load demo data/i }));
+    await selectEntity(user, 'Pilot unsupported prioritisation view');
+
+    const traceabilitySection = screen.getByRole('region', {
+      name: /decision traceability/i,
+    });
+
+    expect(
+      within(traceabilitySection).getByText(
+        /no incoming supporting lineage is connected to this decision/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(traceabilitySection).getByText(
+        /no downstream outcome is connected to this decision/i,
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /reset workspace/i }));
+
+    expect(
+      screen.queryByText('Pilot unsupported prioritisation view'),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Build Phase 4 lineage navigation')).not.toBeInTheDocument();
+    expect(screen.getByText(/no entities yet/i)).toBeInTheDocument();
+  });
 });
 
 async function createEntity({

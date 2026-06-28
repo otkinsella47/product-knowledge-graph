@@ -1,5 +1,9 @@
 import { type FormEvent, useMemo, useState } from 'react';
-import { type Entity, type Relationship } from './domain/graph';
+import {
+  type CreateEntityInput,
+  type Entity,
+  type Relationship,
+} from './domain/graph';
 import {
   createGraphEngine,
   type DecisionTraceabilitySummary,
@@ -27,6 +31,16 @@ type RelationshipFormState = {
   targetEntityId: string;
 };
 
+type DemoEntityInput = CreateEntityInput & {
+  key: string;
+};
+
+type DemoRelationshipInput = {
+  type: RelationshipType;
+  sourceKey: string;
+  targetKey: string;
+};
+
 const emptyFormState: EntityFormState = {
   type: 'research',
   title: '',
@@ -41,10 +55,118 @@ const emptyRelationshipFormState: RelationshipFormState = {
 const lineageTraversalMaxDepth = 6;
 const lineageDisplayPathLimit = 6;
 
+const demoEntities = [
+  {
+    key: 'research',
+    type: 'research',
+    title: 'Interview notes: decision context loss',
+    description:
+      'Customer interviews showed that teams struggle to recover why product decisions were made.',
+  },
+  {
+    key: 'insight',
+    type: 'insight',
+    title: 'Teams lose decision rationale',
+    description:
+      'Decision context fades when research, opportunities and outcomes are stored separately.',
+  },
+  {
+    key: 'goal',
+    type: 'goal',
+    title: 'Improve decision confidence',
+    description:
+      'Help product teams understand the knowledge behind product decisions.',
+  },
+  {
+    key: 'opportunity',
+    type: 'opportunity',
+    title: 'Preserve decision lineage',
+    description:
+      'Make it easy to trace what led to a decision and what happened afterwards.',
+  },
+  {
+    key: 'solution',
+    type: 'solution',
+    title: 'Lineage navigation panel',
+    description:
+      'A lightweight UI panel that shows upstream and downstream knowledge paths.',
+  },
+  {
+    key: 'experiment',
+    type: 'experiment',
+    title: 'Prototype lineage review',
+    description:
+      'A prototype review to see whether users can follow decision context quickly.',
+  },
+  {
+    key: 'decision',
+    type: 'decision',
+    title: 'Build Phase 4 lineage navigation',
+    description:
+      'Decision to add lineage navigation before exploring AI reasoning features.',
+  },
+  {
+    key: 'outcome',
+    type: 'outcome',
+    title: 'Reviewers understood decision context',
+    description:
+      'Reviewers could trace the decision back to research and forward to outcomes.',
+  },
+  {
+    key: 'unsupportedDecision',
+    type: 'decision',
+    title: 'Pilot unsupported prioritisation view',
+    description:
+      'A deliberately incomplete decision with no incoming support or downstream outcome.',
+  },
+] as const satisfies readonly DemoEntityInput[];
+
+const demoRelationships = [
+  {
+    type: 'produces',
+    sourceKey: 'research',
+    targetKey: 'insight',
+  },
+  {
+    type: 'frames',
+    sourceKey: 'goal',
+    targetKey: 'opportunity',
+  },
+  {
+    type: 'reveals',
+    sourceKey: 'insight',
+    targetKey: 'opportunity',
+  },
+  {
+    type: 'supports',
+    sourceKey: 'opportunity',
+    targetKey: 'goal',
+  },
+  {
+    type: 'motivates',
+    sourceKey: 'opportunity',
+    targetKey: 'solution',
+  },
+  {
+    type: 'validated_by',
+    sourceKey: 'solution',
+    targetKey: 'experiment',
+  },
+  {
+    type: 'informs',
+    sourceKey: 'experiment',
+    targetKey: 'decision',
+  },
+  {
+    type: 'influences',
+    sourceKey: 'decision',
+    targetKey: 'outcome',
+  },
+] as const satisfies readonly DemoRelationshipInput[];
+
 function App() {
-  const graphEngine = useMemo<GraphEngine>(
-    () => createGraphEngine(createInMemoryGraphRepository()),
-    [],
+  const [graphEngine, setGraphEngine] = useState<GraphEngine>(() =>
+    createEmptyGraphEngine(),
   );
 
   const [entities, setEntities] = useState<Entity[]>([]);
@@ -254,6 +376,41 @@ function App() {
     setRelationshipError(undefined);
   }
 
+  function handleLoadDemoData() {
+    const {
+      engine: demoGraphEngine,
+      entities: demoGraphEntities,
+      relationships: demoGraphRelationships,
+      selectedEntityId: demoSelectedEntityId,
+    } = createDemoGraph();
+
+    setGraphEngine(demoGraphEngine);
+    setEntities(demoGraphEntities);
+    setRelationships(demoGraphRelationships);
+    setSelectedEntityId(demoSelectedEntityId);
+    setEditingEntityId(undefined);
+    setFormState(emptyFormState);
+    setRelationshipFormState(emptyRelationshipFormState);
+    setSearchQuery('');
+    setTypeFilter('all');
+    setError(undefined);
+    setRelationshipError(undefined);
+  }
+
+  function handleResetWorkspace() {
+    setGraphEngine(createEmptyGraphEngine());
+    setEntities([]);
+    setRelationships([]);
+    setSelectedEntityId(undefined);
+    setEditingEntityId(undefined);
+    setFormState(emptyFormState);
+    setRelationshipFormState(emptyRelationshipFormState);
+    setSearchQuery('');
+    setTypeFilter('all');
+    setError(undefined);
+    setRelationshipError(undefined);
+  }
+
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -406,6 +563,28 @@ function App() {
                     ))}
                   </select>
                 </label>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-300 bg-white p-4 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-950">
+                Demo workspace
+              </h2>
+              <div className="mt-4 grid gap-3">
+                <button
+                  className="rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-cyan-800"
+                  onClick={handleLoadDemoData}
+                  type="button"
+                >
+                  Load demo data
+                </button>
+                <button
+                  className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  onClick={handleResetWorkspace}
+                  type="button"
+                >
+                  Reset workspace
+                </button>
               </div>
             </div>
           </aside>
@@ -913,6 +1092,48 @@ function createLineagePathKey(path: LineagePath) {
     path.endEntity.id,
     ...path.segments.map((segment) => segment.relationship.id),
   ].join('-');
+}
+
+function createEmptyGraphEngine() {
+  return createGraphEngine(createInMemoryGraphRepository());
+}
+
+function createDemoGraph() {
+  const engine = createEmptyGraphEngine();
+  const entitiesByKey = new Map<string, Entity>();
+  const relationships: Relationship[] = [];
+
+  demoEntities.forEach(({ key, ...entityInput }) => {
+    entitiesByKey.set(key, engine.createEntity(entityInput));
+  });
+
+  demoRelationships.forEach((relationshipInput) => {
+    const sourceEntity = entitiesByKey.get(relationshipInput.sourceKey);
+    const targetEntity = entitiesByKey.get(relationshipInput.targetKey);
+
+    if (!sourceEntity || !targetEntity) {
+      throw new Error(
+        `Demo relationship references missing entity: ${relationshipInput.sourceKey} -> ${relationshipInput.targetKey}`,
+      );
+    }
+
+    relationships.push(
+      engine.createRelationship({
+        type: relationshipInput.type,
+        sourceEntityId: sourceEntity.id,
+        targetEntityId: targetEntity.id,
+      }),
+    );
+  });
+
+  const selectedEntity = entitiesByKey.get('decision');
+
+  return {
+    engine,
+    entities: engine.listEntities(),
+    relationships,
+    selectedEntityId: selectedEntity?.id,
+  };
 }
 
 export default App;
