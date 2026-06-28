@@ -229,11 +229,8 @@ function App({
       const graph = await apiClient.loadGraph();
 
       applyPersistedGraph(graph.entities, graph.relationships);
-    } catch {
-      setLoadError('Could not load saved graph data.');
-      setEntities([]);
-      setRelationships([]);
-      setSelectedEntityId(undefined);
+    } catch (error) {
+      setLoadError(formatGraphApiError('Could not load saved graph data.', error));
     } finally {
       setIsLoadingGraph(false);
     }
@@ -251,15 +248,12 @@ function App({
 
         applyPersistedGraph(graph.entities, graph.relationships);
       })
-      .catch(() => {
+      .catch((error) => {
         if (!isCurrent) {
           return;
         }
 
-        setLoadError('Could not load saved graph data.');
-        setEntities([]);
-        setRelationships([]);
-        setSelectedEntityId(undefined);
+        setLoadError(formatGraphApiError('Could not load saved graph data.', error));
       })
       .finally(() => {
         if (isCurrent) {
@@ -360,8 +354,8 @@ function App({
       setError(undefined);
       setEditingEntityId(undefined);
       setFormState(emptyFormState);
-    } catch {
-      setError('Could not save this entity.');
+    } catch (error) {
+      setError(formatGraphApiError('Could not save this entity.', error));
     }
   }
 
@@ -461,8 +455,8 @@ function App({
         editingEntityId === entityId ? emptyFormState : currentFormState,
       );
       setError(undefined);
-    } catch {
-      setError('Remove relationships before deleting this entity.');
+    } catch (error) {
+      setError(formatGraphApiError('Could not delete this entity.', error));
     }
   }
 
@@ -508,8 +502,13 @@ function App({
       ]);
       setRelationshipFormState(emptyRelationshipFormState);
       setRelationshipError(undefined);
-    } catch {
-      setRelationshipError('That relationship is not valid for these entities.');
+    } catch (error) {
+      setRelationshipError(
+        formatGraphApiError(
+          'That relationship is not valid for these entities.',
+          error,
+        ),
+      );
     }
   }
 
@@ -527,8 +526,10 @@ function App({
         ),
       );
       setRelationshipError(undefined);
-    } catch {
-      setRelationshipError('Could not remove this relationship.');
+    } catch (error) {
+      setRelationshipError(
+        formatGraphApiError('Could not remove this relationship.', error),
+      );
     }
   }
 
@@ -775,56 +776,62 @@ function App({
                   title="Loading saved graph"
                   description="Retrieving persisted product knowledge."
                 />
-              ) : loadError ? (
-                <div className="p-4">
-                  <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {loadError}
-                  </p>
-                  <button
-                    className="mt-3 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                    onClick={() => void loadPersistedGraph()}
-                    type="button"
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : filteredEntities.length > 0 ? (
-                <ul className="divide-y divide-slate-200">
-                  {filteredEntities.map((entity) => (
-                    <li key={entity.id}>
+              ) : (
+                <>
+                  {loadError ? (
+                    <div className="p-4">
+                      <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {loadError}
+                      </p>
                       <button
-                        className={`block w-full px-4 py-4 text-left hover:bg-slate-50 ${
-                          selectedEntityId === entity.id ? 'bg-cyan-50' : ''
-                        }`}
-                        onClick={() => handleSelectEntity(entity.id)}
+                        className="mt-3 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                        onClick={() => void loadPersistedGraph()}
                         type="button"
                       >
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <p className="font-medium text-slate-950">
-                              {entity.title}
-                            </p>
-                            <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-600">
-                              {entity.description}
-                            </p>
-                          </div>
-                          <span className="w-fit rounded-md bg-slate-200 px-2 py-1 text-xs font-medium text-slate-700">
-                            {entityTypeConfigs[entity.type].label}
-                          </span>
-                        </div>
+                        Retry
                       </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <EmptyState
-                  title={entities.length > 0 ? 'No matching entities' : 'No entities yet'}
-                  description={
-                    entities.length > 0
-                      ? 'Adjust the search or type filter to widen the list.'
-                      : 'Create the first product knowledge object to start the graph.'
-                  }
-                />
+                    </div>
+                  ) : null}
+
+                  {filteredEntities.length > 0 ? (
+                    <ul className="divide-y divide-slate-200">
+                      {filteredEntities.map((entity) => (
+                        <li key={entity.id}>
+                          <button
+                            className={`block w-full px-4 py-4 text-left hover:bg-slate-50 ${
+                              selectedEntityId === entity.id ? 'bg-cyan-50' : ''
+                            }`}
+                            onClick={() => handleSelectEntity(entity.id)}
+                            type="button"
+                          >
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="font-medium text-slate-950">
+                                  {entity.title}
+                                </p>
+                                <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-600">
+                                  {entity.description}
+                                </p>
+                              </div>
+                              <span className="w-fit rounded-md bg-slate-200 px-2 py-1 text-xs font-medium text-slate-700">
+                                {entityTypeConfigs[entity.type].label}
+                              </span>
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <EmptyState
+                      title={entities.length > 0 ? 'No matching entities' : 'No entities yet'}
+                      description={
+                        entities.length > 0
+                          ? 'Adjust the search or type filter to widen the list.'
+                          : 'Create the first product knowledge object to start the graph.'
+                      }
+                    />
+                  )}
+                </>
               )}
             </div>
 
@@ -1574,6 +1581,14 @@ function formatTimestamp(timestamp: string) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(timestamp));
+}
+
+function formatGraphApiError(prefix: string, error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return `${prefix} ${error.message}`;
+  }
+
+  return prefix;
 }
 
 function formatRelationshipStatement(

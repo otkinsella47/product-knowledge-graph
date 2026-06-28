@@ -45,3 +45,14 @@ data locally:
 The Phase 5 alpha uses an anonymous httpOnly browser cookie to separate
 workspaces. This is a lightweight testing boundary, not authentication or
 permissioning. Clearing browser cookies creates a new anonymous workspace.
+
+## Deployed Persistence
+
+The hosted alpha expects graph API routes to run server-side. On Vercel, set
+`DATABASE_URL` as an environment variable and apply `db/schema.sql` to that
+database before using the app.
+
+If `DATABASE_URL` is missing, or if the schema has not been applied, `/api/*`
+graph routes return a diagnostic error instead of silently falling back to
+browser-only storage. This preserves the Phase 5 persistence model while making
+deployment issues easier to diagnose.
