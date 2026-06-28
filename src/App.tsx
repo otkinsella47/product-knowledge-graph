@@ -1,8 +1,18 @@
-import { type FormEvent, useMemo, useState } from 'react';
-import { type Entity, type Relationship } from './domain/graph';
-import { createGraphEngine, type GraphEngine } from './domain/graphEngine';
+import { type FormEvent, type ReactNode, useMemo, useState } from 'react';
+import {
+  type CreateEntityInput,
+  type Entity,
+  type Relationship,
+} from './domain/graph';
+import {
+  createGraphEngine,
+  type DecisionTraceabilitySummary,
+  type GraphEngine,
+  type LineagePath,
+} from './domain/graphEngine';
 import { createInMemoryGraphRepository } from './domain/graphRepository';
 import {
+  type AllowedRelationship,
   type EntityType,
   type RelationshipType,
   entityTypeConfigs,
@@ -22,6 +32,16 @@ type RelationshipFormState = {
   targetEntityId: string;
 };
 
+type DemoEntityInput = CreateEntityInput & {
+  key: string;
+};
+
+type DemoRelationshipInput = {
+  type: RelationshipType;
+  sourceKey: string;
+  targetKey: string;
+};
+
 const emptyFormState: EntityFormState = {
   type: 'research',
   title: '',
@@ -33,10 +53,126 @@ const emptyRelationshipFormState: RelationshipFormState = {
   targetEntityId: '',
 };
 
+const lineageTraversalMaxDepth = 6;
+const lineageDisplayPathLimit = 6;
+
+type LineageChain = {
+  key: string;
+  segments: LineagePath['segments'];
+};
+
+const demoEntities = [
+  {
+    key: 'research',
+    type: 'research',
+    title: 'Interview notes: decision context loss',
+    description:
+      'Customer interviews showed that teams struggle to recover why product decisions were made.',
+  },
+  {
+    key: 'insight',
+    type: 'insight',
+    title: 'Teams lose decision rationale',
+    description:
+      'Decision context fades when research, opportunities and outcomes are stored separately.',
+  },
+  {
+    key: 'goal',
+    type: 'goal',
+    title: 'Improve decision confidence',
+    description:
+      'Help product teams understand the knowledge behind product decisions.',
+  },
+  {
+    key: 'opportunity',
+    type: 'opportunity',
+    title: 'Preserve decision lineage',
+    description:
+      'Make it easy to trace what led to a decision and what happened afterwards.',
+  },
+  {
+    key: 'solution',
+    type: 'solution',
+    title: 'Lineage navigation panel',
+    description:
+      'A lightweight UI panel that shows upstream and downstream knowledge paths.',
+  },
+  {
+    key: 'experiment',
+    type: 'experiment',
+    title: 'Prototype lineage review',
+    description:
+      'A prototype review to see whether users can follow decision context quickly.',
+  },
+  {
+    key: 'decision',
+    type: 'decision',
+    title: 'Build Phase 4 lineage navigation',
+    description:
+      'Decision to add lineage navigation before exploring AI reasoning features.',
+  },
+  {
+    key: 'outcome',
+    type: 'outcome',
+    title: 'Reviewers understood decision context',
+    description:
+      'Reviewers could trace the decision back to research and forward to outcomes.',
+  },
+  {
+    key: 'unsupportedDecision',
+    type: 'decision',
+    title: 'Pilot unsupported prioritisation view',
+    description:
+      'A deliberately incomplete decision with no incoming support or downstream outcome.',
+  },
+] as const satisfies readonly DemoEntityInput[];
+
+const demoRelationships = [
+  {
+    type: 'produces',
+    sourceKey: 'research',
+    targetKey: 'insight',
+  },
+  {
+    type: 'frames',
+    sourceKey: 'goal',
+    targetKey: 'opportunity',
+  },
+  {
+    type: 'reveals',
+    sourceKey: 'insight',
+    targetKey: 'opportunity',
+  },
+  {
+    type: 'supports',
+    sourceKey: 'opportunity',
+    targetKey: 'goal',
+  },
+  {
+    type: 'motivates',
+    sourceKey: 'opportunity',
+    targetKey: 'solution',
+  },
+  {
+    type: 'validated_by',
+    sourceKey: 'solution',
+    targetKey: 'experiment',
+  },
+  {
+    type: 'informs',
+    sourceKey: 'experiment',
+    targetKey: 'decision',
+  },
+  {
+    type: 'influences',
+    sourceKey: 'decision',
+    targetKey: 'outcome',
+  },
+] as const satisfies readonly DemoRelationshipInput[];
+
 function App() {
-  const graphEngine = useMemo<GraphEngine>(
-    () => createGraphEngine(createInMemoryGraphRepository()),
-    [],
+  const [graphEngine, setGraphEngine] = useState<GraphEngine>(() =>
+    createEmptyGraphEngine(),
   );
 
   const [entities, setEntities] = useState<Entity[]>([]);
@@ -74,6 +210,35 @@ function App() {
           entity.type === selectedRelationshipRule.target,
       )
     : [];
+  const selectedTargetEntity = relationshipFormState.targetEntityId
+    ? entities.find(
+        (entity) => entity.id === relationshipFormState.targetEntityId,
+      )
+    : undefined;
+  const connectionPreview =
+    selectedEntity && selectedRelationshipRule && selectedTargetEntity
+      ? formatConnectionPreview(
+          selectedEntity,
+          selectedRelationshipRule.relationship,
+          selectedTargetEntity,
+        )
+      : undefined;
+  const decisionTraceabilitySummary =
+    selectedEntity?.type === 'decision'
+      ? graphEngine.getDecisionTraceabilitySummary(selectedEntity.id)
+      : undefined;
+  const selectedEntityLineage = selectedEntity
+    ? {
+        backwardPaths: graphEngine
+          .getBackwardLineagePaths(selectedEntity.id, {
+            maxDepth: lineageTraversalMaxDepth,
+          }),
+        forwardPaths: graphEngine
+          .getForwardLineagePaths(selectedEntity.id, {
+            maxDepth: lineageTraversalMaxDepth,
+          }),
+      }
+    : undefined;
 
   const filteredEntities = useMemo(() => {
     const normalisedSearchQuery = searchQuery.trim().toLowerCase();
@@ -191,12 +356,12 @@ function App() {
     }
 
     if (!relationshipFormState.relationship) {
-      setRelationshipError('Choose a relationship type.');
+      setRelationshipError('Choose a connection type.');
       return;
     }
 
     if (!relationshipFormState.targetEntityId) {
-      setRelationshipError('Choose a target entity.');
+      setRelationshipError('Choose an entity to connect to.');
       return;
     }
 
@@ -225,6 +390,41 @@ function App() {
         (relationship) => relationship.id !== relationshipId,
       ),
     );
+    setRelationshipError(undefined);
+  }
+
+  function handleLoadDemoData() {
+    const {
+      engine: demoGraphEngine,
+      entities: demoGraphEntities,
+      relationships: demoGraphRelationships,
+      selectedEntityId: demoSelectedEntityId,
+    } = createDemoGraph();
+
+    setGraphEngine(demoGraphEngine);
+    setEntities(demoGraphEntities);
+    setRelationships(demoGraphRelationships);
+    setSelectedEntityId(demoSelectedEntityId);
+    setEditingEntityId(undefined);
+    setFormState(emptyFormState);
+    setRelationshipFormState(emptyRelationshipFormState);
+    setSearchQuery('');
+    setTypeFilter('all');
+    setError(undefined);
+    setRelationshipError(undefined);
+  }
+
+  function handleResetWorkspace() {
+    setGraphEngine(createEmptyGraphEngine());
+    setEntities([]);
+    setRelationships([]);
+    setSelectedEntityId(undefined);
+    setEditingEntityId(undefined);
+    setFormState(emptyFormState);
+    setRelationshipFormState(emptyRelationshipFormState);
+    setSearchQuery('');
+    setTypeFilter('all');
+    setError(undefined);
     setRelationshipError(undefined);
   }
 
@@ -382,6 +582,28 @@ function App() {
                 </label>
               </div>
             </div>
+
+            <div className="rounded-lg border border-slate-300 bg-white p-4 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-950">
+                Demo workspace
+              </h2>
+              <div className="mt-4 grid gap-3">
+                <button
+                  className="rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-cyan-800"
+                  onClick={handleLoadDemoData}
+                  type="button"
+                >
+                  Load demo data
+                </button>
+                <button
+                  className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  onClick={handleResetWorkspace}
+                  type="button"
+                >
+                  Reset workspace
+                </button>
+              </div>
+            </div>
           </aside>
 
           <section className="grid min-h-0 gap-4 lg:grid-cols-[minmax(320px,1fr)_minmax(280px,420px)]">
@@ -469,18 +691,25 @@ function App() {
                     </div>
                   </dl>
 
-                  <section className="mt-6 border-t border-slate-200 pt-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <h4 className="text-base font-semibold text-slate-950">
-                        Relationships
-                      </h4>
-                      <p className="text-sm text-slate-500">
-                        {selectedEntityRelationships.length} connected
-                      </p>
-                    </div>
+                  {selectedEntityLineage ? (
+                    <LineageTrackerSection
+                      backwardPaths={selectedEntityLineage.backwardPaths}
+                      decisionSummary={decisionTraceabilitySummary}
+                      entity={selectedEntity}
+                      forwardPaths={selectedEntityLineage.forwardPaths}
+                      onSelectEntity={handleSelectEntity}
+                    />
+                  ) : null}
 
+                  <CollapsibleSection
+                    className="mt-6 border-t border-slate-200 pt-4"
+                    defaultOpen={false}
+                    description="Immediate links used to build the lineage paths above."
+                    meta={`${selectedEntityRelationships.length} connected`}
+                    title="Direct connections"
+                  >
                     {selectedEntityRelationships.length > 0 ? (
-                      <ul className="mt-3 divide-y divide-slate-200 rounded-md border border-slate-200">
+                      <ul className="divide-y divide-slate-200 rounded-md border border-slate-200">
                         {selectedEntityRelationships.map((relationship) => {
                           const sourceEntity = entities.find(
                             (entity) => entity.id === relationship.sourceEntityId,
@@ -510,7 +739,9 @@ function App() {
                                   )}
                                 </p>
                                 <p className="mt-1 text-xs text-slate-500">
-                                  {isOutgoing ? 'Outgoing' : 'Incoming'} link
+                                  {isOutgoing
+                                    ? 'Follows from this'
+                                    : 'Leads into this'}
                                 </p>
                               </div>
                               <button
@@ -528,21 +759,37 @@ function App() {
                       </ul>
                     ) : (
                       <p className="mt-3 rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
-                        No relationships yet for this entity.
+                        No direct connections yet for this entity.
                       </p>
                     )}
 
                     <form
-                      aria-label="Add relationship"
+                      aria-label="Connect this entity"
                       className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3"
                       onSubmit={handleRelationshipSubmit}
                     >
                       <h5 className="text-sm font-semibold text-slate-950">
-                        Add outgoing relationship
+                        Connect this entity
                       </h5>
+                      {allowedRelationshipRules.length > 0 ? (
+                        <ul className="mt-2 grid gap-1 text-sm leading-6 text-slate-600">
+                          {allowedRelationshipRules.map((allowedRelationship) => (
+                            <li
+                              key={`${allowedRelationship.relationship}-${allowedRelationship.target}`}
+                            >
+                              {formatConnectionHint(allowedRelationship)}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          This entity has no next-step connections in the v0.1
+                          ontology.
+                        </p>
+                      )}
                       <div className="mt-3 grid gap-3">
                         <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-                          Relationship
+                          Connection type
                           <select
                             className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-100"
                             onChange={(event) =>
@@ -554,7 +801,7 @@ function App() {
                             }
                             value={relationshipFormState.relationship}
                           >
-                            <option value="">Choose relationship</option>
+                            <option value="">Choose connection type</option>
                             {allowedRelationshipRules.map((allowedRelationship) => (
                               <option
                                 key={`${allowedRelationship.relationship}-${allowedRelationship.target}`}
@@ -573,7 +820,7 @@ function App() {
                         </label>
 
                         <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-                          Target entity
+                          Connect to
                           <select
                             className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-100 disabled:bg-slate-100"
                             disabled={!relationshipFormState.relationship}
@@ -594,7 +841,7 @@ function App() {
                                       selectedRelationshipRule.target
                                     ].label
                                   }`
-                                : 'Choose relationship first'}
+                                : 'Choose connection type first'}
                             </option>
                             {validTargetEntities.map((entity) => (
                               <option key={entity.id} value={entity.id}>
@@ -607,9 +854,19 @@ function App() {
                         {selectedRelationshipRule &&
                         validTargetEntities.length === 0 ? (
                           <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                            Create a{' '}
-                            {entityTypeConfigs[selectedRelationshipRule.target].label}{' '}
-                            entity before adding this relationship.
+                            Create{' '}
+                            {formatEntityTypeWithArticle(
+                              selectedRelationshipRule.target,
+                            )}{' '}
+                            before this{' '}
+                            {entityTypeConfigs[selectedRelationshipRule.source].label}{' '}
+                            can be connected.
+                          </p>
+                        ) : null}
+
+                        {connectionPreview ? (
+                          <p className="rounded-md bg-cyan-50 px-3 py-2 text-sm leading-6 text-cyan-900">
+                            Preview: {connectionPreview}
                           </p>
                         ) : null}
 
@@ -623,11 +880,11 @@ function App() {
                           className="rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-cyan-800"
                           type="submit"
                         >
-                          Add relationship
+                          Connect entity
                         </button>
                       </div>
                     </form>
-                  </section>
+                  </CollapsibleSection>
 
                   <div className="mt-6 flex flex-wrap gap-3">
                     <button
@@ -660,6 +917,397 @@ function App() {
   );
 }
 
+function LineageTrackerSection({
+  backwardPaths,
+  decisionSummary,
+  entity,
+  forwardPaths,
+  onSelectEntity,
+}: {
+  backwardPaths: LineagePath[];
+  decisionSummary?: DecisionTraceabilitySummary;
+  entity: Entity;
+  forwardPaths: LineagePath[];
+  onSelectEntity: (entityId: string) => void;
+}) {
+  const isDecision = entity.type === 'decision';
+  const lineageChains = createLineageChains({
+    backwardPaths,
+    decisionSummary,
+    forwardPaths,
+  }).slice(0, lineageDisplayPathLimit);
+
+  return (
+    <CollapsibleSection
+      ariaLabel="Lineage tracker"
+      className="mt-6 border-t border-slate-200 pt-4"
+      defaultOpen={false}
+      description={
+        isDecision
+          ? 'Track what supports this decision, what happened afterwards and where connections are missing.'
+          : getLineageDescription(entity.type)
+      }
+      meta={getLineageTrackerMeta({
+        chains: lineageChains,
+        decisionSummary,
+      })}
+      title="Lineage tracker"
+    >
+      <LineageChainGroup
+        chains={lineageChains}
+        emptyDescription={getLineageEmptyDescription(entity.type)}
+        onSelectEntity={onSelectEntity}
+        selectedEntityId={entity.id}
+      />
+      {decisionSummary ? (
+        <TraceabilityGapGroup gaps={decisionSummary.traceabilityGaps} />
+      ) : null}
+    </CollapsibleSection>
+  );
+}
+
+function LineageChainGroup({
+  chains,
+  emptyDescription,
+  onSelectEntity,
+  selectedEntityId,
+}: {
+  chains: LineageChain[];
+  emptyDescription: string;
+  onSelectEntity: (entityId: string) => void;
+  selectedEntityId: string;
+}) {
+  return (
+    <CollapsibleSection
+      className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-2"
+      meta={`${chains.length} ${chains.length === 1 ? 'chain' : 'chains'}`}
+      title="Lineage chains"
+    >
+      {chains.length > 0 ? (
+        <ul className="grid gap-3">
+          {chains.map((chain) => (
+            <li
+              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3"
+              key={chain.key}
+            >
+              <LineageChainView
+                chain={chain}
+                onSelectEntity={onSelectEntity}
+                selectedEntityId={selectedEntityId}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
+          {emptyDescription}
+        </p>
+      )}
+    </CollapsibleSection>
+  );
+}
+
+function TraceabilityGapGroup({
+  gaps,
+}: {
+  gaps: DecisionTraceabilitySummary['traceabilityGaps'];
+}) {
+  return (
+    <CollapsibleSection
+      className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-2"
+      meta={`${gaps.length} ${gaps.length === 1 ? 'gap' : 'gaps'}`}
+      title="Traceability gaps"
+    >
+      {gaps.length > 0 ? (
+        <ul className="grid gap-2">
+          {gaps.map((gap) => (
+            <li
+              className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2"
+              key={gap.code}
+            >
+              <p className="text-sm font-medium text-amber-900">{gap.label}</p>
+              <p className="mt-1 text-sm leading-6 text-amber-800">
+                {gap.message}
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
+          No traceability gaps found for this decision.
+        </p>
+      )}
+    </CollapsibleSection>
+  );
+}
+
+function CollapsibleSection({
+  ariaLabel,
+  children,
+  className,
+  defaultOpen = true,
+  description,
+  meta,
+  title,
+}: {
+  ariaLabel?: string;
+  children: ReactNode;
+  className: string;
+  defaultOpen?: boolean;
+  description?: string;
+  meta?: string;
+  title: string;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const contentId = `${normaliseId(title)}-content`;
+
+  return (
+    <section aria-label={ariaLabel ?? title} className={className}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <button
+            aria-controls={contentId}
+            aria-expanded={isOpen}
+            className="flex items-center gap-2 text-left text-sm font-semibold text-slate-950 hover:text-cyan-800"
+            onClick={() => setIsOpen((currentIsOpen) => !currentIsOpen)}
+            type="button"
+          >
+            <span aria-hidden="true" className="w-3 text-xs text-slate-500">
+              {isOpen ? '-' : '+'}
+            </span>
+            <span>{title}</span>
+          </button>
+          {description ? (
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {description}
+            </p>
+          ) : null}
+        </div>
+        {meta ? (
+          <p className="shrink-0 text-xs font-medium text-slate-500">{meta}</p>
+        ) : null}
+      </div>
+      {isOpen ? (
+        <div className="mt-3" id={contentId}>
+          {children}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function getLineageTrackerMeta({
+  chains,
+  decisionSummary,
+}: {
+  chains: LineageChain[];
+  decisionSummary?: DecisionTraceabilitySummary;
+}) {
+  if (decisionSummary) {
+    return `${chains.length} chains, ${decisionSummary.traceabilityGaps.length} gaps`;
+  }
+
+  return `${chains.length} ${chains.length === 1 ? 'chain' : 'chains'}`;
+}
+
+function normaliseId(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+function createLineageChains({
+  backwardPaths,
+  decisionSummary,
+  forwardPaths,
+}: {
+  backwardPaths: LineagePath[];
+  decisionSummary?: DecisionTraceabilitySummary;
+  forwardPaths: LineagePath[];
+}): LineageChain[] {
+  const upstreamPaths = removePartialLineagePaths(
+    decisionSummary?.supportingLineagePaths ?? backwardPaths,
+  );
+  const downstreamPaths = removePartialLineagePaths(
+    decisionSummary?.downstreamOutcomePaths ?? forwardPaths,
+  );
+  const chains: LineageChain[] = [];
+
+  if (upstreamPaths.length > 0 && downstreamPaths.length > 0) {
+    upstreamPaths.forEach((upstreamPath) => {
+      downstreamPaths.forEach((downstreamPath) => {
+        chains.push(createLineageChain([
+          ...upstreamPath.segments,
+          ...downstreamPath.segments,
+        ]));
+      });
+    });
+  } else {
+    [...upstreamPaths, ...downstreamPaths].forEach((path) => {
+      chains.push(createLineageChain(path.segments));
+    });
+  }
+
+  return removePartialLineageChains(dedupeLineageChains(chains));
+}
+
+function createLineageChain(segments: LineagePath['segments']): LineageChain {
+  return {
+    key: createRelationshipSequenceKey(segments),
+    segments,
+  };
+}
+
+function removePartialLineagePaths(paths: LineagePath[]) {
+  const chains = paths.map((path) => createLineageChain(path.segments));
+  const completeChains = removePartialLineageChains(dedupeLineageChains(chains));
+  const completeKeys = new Set(completeChains.map((chain) => chain.key));
+
+  return paths.filter((path) =>
+    completeKeys.has(createRelationshipSequenceKey(path.segments)),
+  );
+}
+
+function dedupeLineageChains(chains: LineageChain[]) {
+  const chainsByKey = new Map<string, LineageChain>();
+
+  chains.forEach((chain) => {
+    if (!chainsByKey.has(chain.key)) {
+      chainsByKey.set(chain.key, chain);
+    }
+  });
+
+  return [...chainsByKey.values()];
+}
+
+function removePartialLineageChains(chains: LineageChain[]) {
+  return [...chains]
+    .sort((leftChain, rightChain) => rightChain.segments.length - leftChain.segments.length)
+    .filter((candidateChain, _index, sortedChains) =>
+      !sortedChains.some(
+        (otherChain) =>
+          otherChain !== candidateChain &&
+          otherChain.segments.length > candidateChain.segments.length &&
+          isRelationshipSequenceSubset(candidateChain.segments, otherChain.segments),
+      ),
+    );
+}
+
+function isRelationshipSequenceSubset(
+  candidateSegments: LineagePath['segments'],
+  otherSegments: LineagePath['segments'],
+) {
+  const candidateRelationshipIds = candidateSegments.map(
+    (segment) => segment.relationship.id,
+  );
+  const otherRelationshipIds = otherSegments.map(
+    (segment) => segment.relationship.id,
+  );
+
+  if (
+    candidateRelationshipIds.length === 0 ||
+    candidateRelationshipIds.length >= otherRelationshipIds.length
+  ) {
+    return false;
+  }
+
+  return otherRelationshipIds.some((_, startIndex) =>
+    candidateRelationshipIds.every(
+      (relationshipId, offset) =>
+        otherRelationshipIds[startIndex + offset] === relationshipId,
+    ),
+  );
+}
+
+function createRelationshipSequenceKey(segments: LineagePath['segments']) {
+  return segments.map((segment) => segment.relationship.id).join('-');
+}
+
+function LineageChainView({
+  chain,
+  onSelectEntity,
+  selectedEntityId,
+}: {
+  chain: LineageChain;
+  onSelectEntity: (entityId: string) => void;
+  selectedEntityId: string;
+}) {
+  const chainEntities = getLineageChainEntities(chain);
+
+  if (chainEntities.length === 0) {
+    return null;
+  }
+
+  return (
+    <ol className="grid gap-2 text-sm">
+      {chainEntities.map((chainEntity, index) => (
+        <li className="grid gap-2" key={`${chainEntity.entity.id}-${index}`}>
+          {index > 0 ? (
+            <p className="pl-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {chain.segments[index - 1]?.relationshipLabel}
+            </p>
+          ) : null}
+          <EntityStep
+            entity={chainEntity.entity}
+            isSelected={chainEntity.entity.id === selectedEntityId}
+            label={chainEntity.label}
+            onSelectEntity={onSelectEntity}
+          />
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function getLineageChainEntities(chain: LineageChain) {
+  const firstSegment = chain.segments[0];
+
+  if (!firstSegment) {
+    return [];
+  }
+
+  return [
+    {
+      entity: firstSegment.sourceEntity,
+      label: firstSegment.sourceLabel,
+    },
+    ...chain.segments.map((segment) => ({
+      entity: segment.targetEntity,
+      label: segment.targetLabel,
+    })),
+  ];
+}
+
+function EntityStep({
+  entity,
+  isSelected,
+  label,
+  onSelectEntity,
+}: {
+  entity: Entity;
+  isSelected: boolean;
+  label: string;
+  onSelectEntity: (entityId: string) => void;
+}) {
+  return (
+    <button
+      className={`rounded-md border px-3 py-2 text-left leading-6 ${
+        isSelected
+          ? 'border-cyan-300 bg-cyan-50 text-cyan-950'
+          : 'border-transparent text-slate-700 hover:border-slate-300 hover:bg-white'
+      }`}
+      onClick={() => onSelectEntity(entity.id)}
+      type="button"
+    >
+      <span className="font-semibold text-slate-950">{label}:</span>{' '}
+      {entity.title}
+      {isSelected ? (
+        <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-cyan-700">
+          Selected
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-right shadow-sm">
@@ -688,6 +1336,68 @@ function EmptyState({
   );
 }
 
+function getLineageDescription(entityType: EntityType) {
+  const descriptions: Record<EntityType, string> = {
+    research: 'See which insights, decisions and outcomes this research influenced.',
+    insight: 'See which opportunities, decisions and outcomes this insight influenced.',
+    goal: 'See which opportunities this goal frames or is supported by.',
+    opportunity:
+      'See what revealed this opportunity and which solutions followed.',
+    solution: 'See what motivated this solution and how it was tested.',
+    experiment: 'See what led to this experiment and which decisions it informed.',
+    decision: 'See what supported this decision and what happened afterwards.',
+    outcome: 'See which decision led here and what new insight emerged.',
+  };
+
+  return descriptions[entityType];
+}
+
+function getLineageEmptyDescription(entityType: EntityType) {
+  const descriptions: Record<EntityType, string> = {
+    research:
+      'No lineage chain is connected yet. Connect this Research to an Insight it produced.',
+    insight:
+      'No lineage chain is connected yet. Connect this Insight to an Opportunity or Decision.',
+    goal:
+      'No lineage chain is connected yet. Connect this Goal to an Opportunity it frames or supports.',
+    opportunity:
+      'No lineage chain is connected yet. Connect this Opportunity to an Insight, Goal or Solution.',
+    solution:
+      'No lineage chain is connected yet. Connect this Solution to an Opportunity or Experiment.',
+    experiment:
+      'No lineage chain is connected yet. Connect this Experiment to a Solution, Decision or Insight.',
+    decision:
+      'No lineage chain is connected yet. Connect an Insight or Experiment that informed this Decision, or an Outcome when one exists.',
+    outcome:
+      'No lineage chain is connected yet. Connect the Decision that influenced this Outcome or an Insight it produced.',
+  };
+
+  return descriptions[entityType];
+}
+
+function formatConnectionHint(allowedRelationship: AllowedRelationship) {
+  return `This ${entityTypeConfigs[allowedRelationship.source].label} can ${
+    relationshipTypeConfigs[allowedRelationship.relationship].label
+  } ${formatEntityTypeWithArticle(allowedRelationship.target)}.`;
+}
+
+function formatConnectionPreview(
+  sourceEntity: Entity,
+  relationshipType: RelationshipType,
+  targetEntity: Entity,
+) {
+  return `${sourceEntity.title} ${
+    relationshipTypeConfigs[relationshipType].label
+  } ${targetEntity.title}`;
+}
+
+function formatEntityTypeWithArticle(entityType: EntityType) {
+  const label = entityTypeConfigs[entityType].label;
+  const article = /^[aeiou]/i.test(label) ? 'an' : 'a';
+
+  return `${article} ${label}`;
+}
+
 function formatTimestamp(timestamp: string) {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
@@ -705,6 +1415,48 @@ function formatRelationshipStatement(
   } ${entityTypeConfigs[targetEntity.type].label}: ${sourceEntity.title} -> ${
     targetEntity.title
   }`;
+}
+
+function createEmptyGraphEngine() {
+  return createGraphEngine(createInMemoryGraphRepository());
+}
+
+function createDemoGraph() {
+  const engine = createEmptyGraphEngine();
+  const entitiesByKey = new Map<string, Entity>();
+  const relationships: Relationship[] = [];
+
+  demoEntities.forEach(({ key, ...entityInput }) => {
+    entitiesByKey.set(key, engine.createEntity(entityInput));
+  });
+
+  demoRelationships.forEach((relationshipInput) => {
+    const sourceEntity = entitiesByKey.get(relationshipInput.sourceKey);
+    const targetEntity = entitiesByKey.get(relationshipInput.targetKey);
+
+    if (!sourceEntity || !targetEntity) {
+      throw new Error(
+        `Demo relationship references missing entity: ${relationshipInput.sourceKey} -> ${relationshipInput.targetKey}`,
+      );
+    }
+
+    relationships.push(
+      engine.createRelationship({
+        type: relationshipInput.type,
+        sourceEntityId: sourceEntity.id,
+        targetEntityId: targetEntity.id,
+      }),
+    );
+  });
+
+  const selectedEntity = entitiesByKey.get('decision');
+
+  return {
+    engine,
+    entities: engine.listEntities(),
+    relationships,
+    selectedEntityId: selectedEntity?.id,
+  };
 }
 
 export default App;

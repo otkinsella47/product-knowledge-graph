@@ -13,7 +13,7 @@ describe('in-memory graph repository', () => {
       title: 'Teams lose decision context',
       description: 'Decision rationale often becomes scattered after discovery.',
       metadata: {
-        confidence: 0.8,
+        sourceCount: 3,
         reviewed: true,
       },
     });
@@ -24,7 +24,7 @@ describe('in-memory graph repository', () => {
       title: 'Teams lose decision context',
       description: 'Decision rationale often becomes scattered after discovery.',
       metadata: {
-        confidence: 0.8,
+        sourceCount: 3,
         reviewed: true,
       },
       createdAt: '2026-06-21T10:00:00.000Z',
