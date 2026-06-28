@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { Pool, type QueryResultRow } from 'pg';
+import pg from 'pg';
+import { type Pool as PgPool, type QueryResultRow } from 'pg';
 import {
   type CreateEntityInput,
   type CreateRelationshipInput,
@@ -13,6 +14,8 @@ import {
   isValidEntityType,
   isValidRelationshipType,
 } from '../../domain/ontology';
+
+const { Pool } = pg;
 
 export type PersistentGraphRepository = {
   createEntity(input: CreateEntityInput): Promise<Entity>;
@@ -90,7 +93,7 @@ type WorkspaceRow = QueryResultRow & {
   updated_at: Date | string;
 };
 
-export function createPostgresPoolFromEnv(): Pool {
+export function createPostgresPoolFromEnv(): PgPool {
   const connectionString = process.env.DATABASE_URL;
 
   if (!connectionString) {
