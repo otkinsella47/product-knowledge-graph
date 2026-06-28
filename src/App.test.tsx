@@ -292,13 +292,15 @@ describe('App', () => {
 
     await selectEntity(user, 'Users lose decision context');
 
-    const lineageSection = screen.getByRole('region', { name: /^lineage$/i });
+    const lineageSection = screen.getByRole('region', {
+      name: /lineage tracker/i,
+    });
 
     expect(
-      within(lineageSection).getByRole('heading', { name: /what led here/i }),
+      within(lineageSection).getByRole('button', { name: /what led here/i }),
     ).toBeInTheDocument();
     expect(
-      within(lineageSection).getByRole('heading', { name: /what followed/i }),
+      within(lineageSection).getByRole('button', { name: /what followed/i }),
     ).toBeInTheDocument();
     expect(
       within(lineageSection).getByText(
@@ -317,6 +319,22 @@ describe('App', () => {
     expect(
       within(lineageSection).getByText('Reviewers understood rationale'),
     ).toBeInTheDocument();
+
+    await user.click(
+      within(lineageSection).getByRole('button', { name: /what followed/i }),
+    );
+
+    expect(
+      within(lineageSection).queryByText('Reviewers understood rationale'),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      within(lineageSection).getByRole('button', { name: /what followed/i }),
+    );
+
+    expect(
+      within(lineageSection).getByText('Reviewers understood rationale'),
+    ).toBeInTheDocument();
   });
 
   it('shows empty lineage states for an entity with no lineage', async () => {
@@ -331,7 +349,9 @@ describe('App', () => {
       type: 'Research',
     });
 
-    const lineageSection = screen.getByRole('region', { name: /^lineage$/i });
+    const lineageSection = screen.getByRole('region', {
+      name: /lineage tracker/i,
+    });
 
     expect(
       within(lineageSection).getByText(/research can start a new knowledge path/i),
@@ -343,7 +363,7 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows decision traceability for a selected decision', async () => {
+  it('shows decision support and outcomes in the unified lineage tracker', async () => {
     const user = userEvent.setup();
 
     render(<App />);
@@ -428,36 +448,41 @@ describe('App', () => {
       target: 'Reviewers understood rationale',
     });
 
-    const traceabilitySection = screen.getByRole('region', {
-      name: /decision traceability/i,
+    const lineageSection = screen.getByRole('region', {
+      name: /lineage tracker/i,
     });
 
     expect(
-      within(traceabilitySection).getByRole('heading', {
-        name: /supporting lineage/i,
+      within(lineageSection).getByRole('button', {
+        name: /decision support/i,
       }),
     ).toBeInTheDocument();
     expect(
-      within(traceabilitySection).getByRole('heading', {
-        name: /downstream outcomes/i,
+      within(lineageSection).getByRole('button', {
+        name: /outcomes/i,
       }),
     ).toBeInTheDocument();
-    expect(within(traceabilitySection).getByText(/research:/i)).toBeInTheDocument();
     expect(
-      within(traceabilitySection).getByText('Interview notes'),
+      within(lineageSection).queryByRole('button', {
+        name: /what led here/i,
+      }),
+    ).not.toBeInTheDocument();
+    expect(within(lineageSection).getByText(/research:/i)).toBeInTheDocument();
+    expect(
+      within(lineageSection).getByText('Interview notes'),
     ).toBeInTheDocument();
     expect(
-      within(traceabilitySection).getAllByText(/validated by/i).length,
+      within(lineageSection).getAllByText(/validated by/i).length,
     ).toBeGreaterThan(0);
     expect(
-      within(traceabilitySection).getByText('Reviewers understood rationale'),
+      within(lineageSection).getByText('Reviewers understood rationale'),
     ).toBeInTheDocument();
     expect(
-      within(traceabilitySection).getByText(/no lineage gaps found/i),
+      within(lineageSection).getByText(/no lineage gaps found/i),
     ).toBeInTheDocument();
   });
 
-  it('shows decision traceability gaps for a decision with missing connections', async () => {
+  it('shows decision lineage gaps in the unified lineage tracker', async () => {
     const user = userEvent.setup();
 
     render(<App />);
@@ -469,35 +494,45 @@ describe('App', () => {
       type: 'Decision',
     });
 
-    const traceabilitySection = screen.getByRole('region', {
-      name: /decision traceability/i,
+    const lineageSection = screen.getByRole('region', {
+      name: /lineage tracker/i,
     });
 
     expect(
-      within(traceabilitySection).getByText(
+      within(lineageSection).getByText(
         /nothing supports this decision yet/i,
       ),
     ).toBeInTheDocument();
     expect(
-      within(traceabilitySection).getByText(
+      within(lineageSection).getByText(
         /no outcome is connected yet/i,
       ),
     ).toBeInTheDocument();
     expect(
-      within(traceabilitySection).getByText(
+      within(lineageSection).getByText(
         /no incoming supporting lineage is connected to this decision/i,
       ),
     ).toBeInTheDocument();
     expect(
-      within(traceabilitySection).getByText(
+      within(lineageSection).getByText(
         /no upstream research, insight or experiment is connected to this decision/i,
       ),
     ).toBeInTheDocument();
     expect(
-      within(traceabilitySection).getByText(
+      within(lineageSection).getByText(
         /no downstream outcome is connected to this decision/i,
       ),
     ).toBeInTheDocument();
+
+    await user.click(
+      within(lineageSection).getByRole('button', { name: /lineage gaps/i }),
+    );
+
+    expect(
+      within(lineageSection).queryByText(
+        /no incoming supporting lineage is connected to this decision/i,
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it('loads demo data for Phase 4 lineage validation', async () => {
@@ -517,32 +552,34 @@ describe('App', () => {
       screen.getAllByText('Reviewers understood decision context').length,
     ).toBeGreaterThan(0);
 
-    const traceabilitySection = screen.getByRole('region', {
-      name: /decision traceability/i,
+    const lineageSection = screen.getByRole('region', {
+      name: /lineage tracker/i,
     });
 
     expect(
-      within(traceabilitySection).getByText(
+      within(lineageSection).getByText(
         'Interview notes: decision context loss',
       ),
     ).toBeInTheDocument();
     expect(
-      within(traceabilitySection).getByText('Reviewers understood decision context'),
+      within(lineageSection).getByText('Reviewers understood decision context'),
     ).toBeInTheDocument();
     expect(
-      within(traceabilitySection).getByText(/no lineage gaps found/i),
+      within(lineageSection).getByText(/no lineage gaps found/i),
     ).toBeInTheDocument();
 
     await selectEntity(user, 'Teams lose decision rationale');
 
-    const lineageSection = screen.getByRole('region', { name: /^lineage$/i });
+    const insightLineageSection = screen.getByRole('region', {
+      name: /lineage tracker/i,
+    });
 
     expect(
-      within(lineageSection).getAllByText('Build Phase 4 lineage navigation')
+      within(insightLineageSection).getAllByText('Build Phase 4 lineage navigation')
         .length,
     ).toBeGreaterThan(0);
     expect(
-      within(lineageSection).getByText('Reviewers understood decision context'),
+      within(insightLineageSection).getByText('Reviewers understood decision context'),
     ).toBeInTheDocument();
   });
 
@@ -554,17 +591,17 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /load demo data/i }));
     await selectEntity(user, 'Pilot unsupported prioritisation view');
 
-    const traceabilitySection = screen.getByRole('region', {
-      name: /decision traceability/i,
+    const lineageSection = screen.getByRole('region', {
+      name: /lineage tracker/i,
     });
 
     expect(
-      within(traceabilitySection).getByText(
+      within(lineageSection).getByText(
         /no incoming supporting lineage is connected to this decision/i,
       ),
     ).toBeInTheDocument();
     expect(
-      within(traceabilitySection).getByText(
+      within(lineageSection).getByText(
         /no downstream outcome is connected to this decision/i,
       ),
     ).toBeInTheDocument();

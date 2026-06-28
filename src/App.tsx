@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from 'react';
+import { type FormEvent, type ReactNode, useMemo, useState } from 'react';
 import {
   type CreateEntityInput,
   type Entity,
@@ -688,40 +688,23 @@ function App() {
                     </div>
                   </dl>
 
-                  {decisionTraceabilitySummary ? (
-                    <DecisionTraceabilitySection
-                      summary={decisionTraceabilitySummary}
-                    />
-                  ) : null}
-
                   {selectedEntityLineage ? (
-                    <LineageSection
+                    <LineageTrackerSection
                       backwardPaths={selectedEntityLineage.backwardPaths}
+                      decisionSummary={decisionTraceabilitySummary}
                       entity={selectedEntity}
                       forwardPaths={selectedEntityLineage.forwardPaths}
-                      title={
-                        selectedEntity.type === 'decision'
-                          ? 'All lineage paths'
-                          : 'Lineage'
-                      }
                     />
                   ) : null}
 
-                  <section className="mt-6 border-t border-slate-200 pt-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <h4 className="text-base font-semibold text-slate-950">
-                        Direct connections
-                      </h4>
-                      <p className="text-sm text-slate-500">
-                        {selectedEntityRelationships.length} connected
-                      </p>
-                    </div>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
-                      Immediate links used to build the lineage paths above.
-                    </p>
-
+                  <CollapsibleSection
+                    className="mt-6 border-t border-slate-200 pt-4"
+                    description="Immediate links used to build the lineage paths above."
+                    meta={`${selectedEntityRelationships.length} connected`}
+                    title="Direct connections"
+                  >
                     {selectedEntityRelationships.length > 0 ? (
-                      <ul className="mt-3 divide-y divide-slate-200 rounded-md border border-slate-200">
+                      <ul className="divide-y divide-slate-200 rounded-md border border-slate-200">
                         {selectedEntityRelationships.map((relationship) => {
                           const sourceEntity = entities.find(
                             (entity) => entity.id === relationship.sourceEntityId,
@@ -896,7 +879,7 @@ function App() {
                         </button>
                       </div>
                     </form>
-                  </section>
+                  </CollapsibleSection>
 
                   <div className="mt-6 flex flex-wrap gap-3">
                     <button
@@ -929,96 +912,94 @@ function App() {
   );
 }
 
-function LineageSection({
+function LineageTrackerSection({
   backwardPaths,
+  decisionSummary,
   entity,
   forwardPaths,
-  title,
 }: {
   backwardPaths: LineagePath[];
+  decisionSummary?: DecisionTraceabilitySummary;
   entity: Entity;
   forwardPaths: LineagePath[];
-  title: string;
 }) {
-  return (
-    <section
-      aria-label={title}
-      className="mt-6 border-t border-slate-200 pt-4"
-    >
-      <div className="flex flex-col gap-1">
-        <h4 className="text-base font-semibold text-slate-950">{title}</h4>
-        <p className="text-sm leading-6 text-slate-600">
-          {getLineageDescription(entity.type)}
-        </p>
-      </div>
+  const isDecision = entity.type === 'decision';
 
-      <TraceabilityPathGroup
-        emptyDescription={getLineageEmptyDescription(entity.type, 'backward')}
-        paths={backwardPaths}
-        title="What led here"
-      />
-      <TraceabilityPathGroup
-        emptyDescription={getLineageEmptyDescription(entity.type, 'forward')}
-        paths={forwardPaths}
-        title="What followed"
-      />
-    </section>
+  return (
+    <CollapsibleSection
+      ariaLabel="Lineage tracker"
+      className="mt-6 border-t border-slate-200 pt-4"
+      description={
+        isDecision
+          ? 'Track what supports this decision, what happened afterwards and where connections are missing.'
+          : getLineageDescription(entity.type)
+      }
+      meta={getLineageTrackerMeta({
+        backwardPaths,
+        decisionSummary,
+        forwardPaths,
+      })}
+      title="Lineage tracker"
+    >
+      {decisionSummary ? (
+        <>
+          <TraceabilityPathGroup
+            emptyDescription="Nothing supports this decision yet. Connect an Insight or Experiment that informed it."
+            paths={decisionSummary.supportingLineagePaths}
+            title="Decision support"
+          />
+          <TraceabilityPathGroup
+            emptyDescription="No outcome is connected yet. Connect an Outcome when you know what happened after the decision."
+            paths={decisionSummary.downstreamOutcomePaths}
+            title="Outcomes"
+          />
+          <LineageGapGroup gaps={decisionSummary.lineageGaps} />
+        </>
+      ) : (
+        <>
+          <TraceabilityPathGroup
+            emptyDescription={getLineageEmptyDescription(entity.type, 'backward')}
+            paths={backwardPaths}
+            title="What led here"
+          />
+          <TraceabilityPathGroup
+            emptyDescription={getLineageEmptyDescription(entity.type, 'forward')}
+            paths={forwardPaths}
+            title="What followed"
+          />
+        </>
+      )}
+    </CollapsibleSection>
   );
 }
 
-function DecisionTraceabilitySection({
-  summary,
-}: {
-  summary: DecisionTraceabilitySummary;
-}) {
+function LineageGapGroup({ gaps }: { gaps: DecisionTraceabilitySummary['lineageGaps'] }) {
   return (
-    <section
-      aria-label="Decision traceability"
-      className="mt-6 border-t border-slate-200 pt-4"
+    <CollapsibleSection
+      className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-2"
+      meta={`${gaps.length} ${gaps.length === 1 ? 'gap' : 'gaps'}`}
+      title="Lineage gaps"
     >
-      <div className="flex flex-col gap-1">
-        <h4 className="text-base font-semibold text-slate-950">
-          Decision traceability
-        </h4>
-        <p className="text-sm leading-6 text-slate-600">
-          Review the knowledge paths connected to this decision.
+      {gaps.length > 0 ? (
+        <ul className="grid gap-2">
+          {gaps.map((gap) => (
+            <li
+              className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2"
+              key={gap.code}
+            >
+              <p className="text-sm font-medium text-amber-900">{gap.label}</p>
+              <p className="mt-1 text-sm leading-6 text-amber-800">
+                {gap.message}
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
+          No lineage gaps found for this decision.
         </p>
-      </div>
-
-      <TraceabilityPathGroup
-        emptyDescription="Nothing supports this decision yet. Connect an Insight or Experiment that informed it."
-        paths={summary.supportingLineagePaths}
-        title="Supporting lineage"
-      />
-      <TraceabilityPathGroup
-        emptyDescription="No outcome is connected yet. Connect an Outcome when you know what happened after the decision."
-        paths={summary.downstreamOutcomePaths}
-        title="Downstream outcomes"
-      />
-
-      <section className="mt-4">
-        <h5 className="text-sm font-semibold text-slate-950">Lineage gaps</h5>
-        {summary.lineageGaps.length > 0 ? (
-          <ul className="mt-2 grid gap-2">
-            {summary.lineageGaps.map((gap) => (
-              <li
-                className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2"
-                key={gap.code}
-              >
-                <p className="text-sm font-medium text-amber-900">{gap.label}</p>
-                <p className="mt-1 text-sm leading-6 text-amber-800">
-                  {gap.message}
-                </p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-2 rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
-            No lineage gaps found for this decision.
-          </p>
-        )}
-      </section>
-    </section>
+      )}
+    </CollapsibleSection>
   );
 }
 
@@ -1032,16 +1013,13 @@ function TraceabilityPathGroup({
   title: string;
 }) {
   return (
-    <section className="mt-4">
-      <div className="flex items-center justify-between gap-3">
-        <h5 className="text-sm font-semibold text-slate-950">{title}</h5>
-        <p className="text-xs font-medium text-slate-500">
-          {paths.length} {paths.length === 1 ? 'path' : 'paths'}
-        </p>
-      </div>
-
+    <CollapsibleSection
+      className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-2"
+      meta={`${paths.length} ${paths.length === 1 ? 'path' : 'paths'}`}
+      title={title}
+    >
       {paths.length > 0 ? (
-        <ul className="mt-2 grid gap-3">
+        <ul className="grid gap-3">
           {paths.map((path) => (
             <li
               className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3"
@@ -1052,12 +1030,85 @@ function TraceabilityPathGroup({
           ))}
         </ul>
       ) : (
-        <p className="mt-2 rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
+        <p className="rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
           {emptyDescription}
         </p>
       )}
+    </CollapsibleSection>
+  );
+}
+
+function CollapsibleSection({
+  ariaLabel,
+  children,
+  className,
+  description,
+  meta,
+  title,
+}: {
+  ariaLabel?: string;
+  children: ReactNode;
+  className: string;
+  description?: string;
+  meta?: string;
+  title: string;
+}) {
+  const [isOpen, setIsOpen] = useState(true);
+  const contentId = `${normaliseId(title)}-content`;
+
+  return (
+    <section aria-label={ariaLabel ?? title} className={className}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <button
+            aria-controls={contentId}
+            aria-expanded={isOpen}
+            className="flex items-center gap-2 text-left text-sm font-semibold text-slate-950 hover:text-cyan-800"
+            onClick={() => setIsOpen((currentIsOpen) => !currentIsOpen)}
+            type="button"
+          >
+            <span aria-hidden="true" className="w-3 text-xs text-slate-500">
+              {isOpen ? '-' : '+'}
+            </span>
+            <span>{title}</span>
+          </button>
+          {description ? (
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {description}
+            </p>
+          ) : null}
+        </div>
+        {meta ? (
+          <p className="shrink-0 text-xs font-medium text-slate-500">{meta}</p>
+        ) : null}
+      </div>
+      {isOpen ? (
+        <div className="mt-3" id={contentId}>
+          {children}
+        </div>
+      ) : null}
     </section>
   );
+}
+
+function getLineageTrackerMeta({
+  backwardPaths,
+  decisionSummary,
+  forwardPaths,
+}: {
+  backwardPaths: LineagePath[];
+  decisionSummary?: DecisionTraceabilitySummary;
+  forwardPaths: LineagePath[];
+}) {
+  if (decisionSummary) {
+    return `${decisionSummary.supportingLineagePaths.length} support, ${decisionSummary.downstreamOutcomePaths.length} outcomes, ${decisionSummary.lineageGaps.length} gaps`;
+  }
+
+  return `${backwardPaths.length} led here, ${forwardPaths.length} followed`;
+}
+
+function normaliseId(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
 function LineagePathView({ path }: { path: LineagePath }) {
