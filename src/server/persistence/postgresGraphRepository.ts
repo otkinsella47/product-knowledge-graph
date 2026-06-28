@@ -78,6 +78,21 @@ export function createPostgresPoolFromEnv(): Pool {
   return new Pool({ connectionString });
 }
 
+export async function ensureWorkspace(
+  client: PostgresQueryClient,
+  workspaceId: string,
+  name = 'Alpha workspace',
+): Promise<void> {
+  const timestamp = new Date().toISOString();
+
+  await client.query(
+    `insert into workspaces (id, name, created_at, updated_at)
+    values ($1, $2, $3, $3)
+    on conflict (id) do nothing`,
+    [workspaceId, name, timestamp],
+  );
+}
+
 export function createPostgresGraphRepository({
   client,
   workspaceId,

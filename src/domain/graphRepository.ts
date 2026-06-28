@@ -30,13 +30,22 @@ export type GraphRepository = {
 type InMemoryGraphRepositoryOptions = {
   now?: () => string;
   createId?: () => string;
+  entities?: Entity[];
+  relationships?: Relationship[];
 };
 
 export function createInMemoryGraphRepository(
   options: InMemoryGraphRepositoryOptions = {},
 ): GraphRepository {
-  const entities = new Map<string, Entity>();
-  const relationships = new Map<string, Relationship>();
+  const entities = new Map<string, Entity>(
+    options.entities?.map((entity) => [entity.id, entity]),
+  );
+  const relationships = new Map<string, Relationship>(
+    options.relationships?.map((relationship) => [
+      relationship.id,
+      relationship,
+    ]),
+  );
   const now = options.now ?? (() => new Date().toISOString());
   const createId = options.createId ?? createSequentialId();
 

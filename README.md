@@ -31,3 +31,15 @@ Recommended reading order:
 9. `AGENT_GUIDE.md`
 
 Personal AI workflow files belong in `.ai-private/` and should not be committed.
+
+## Local Persistence
+
+Phase 5 adds thin graph API routes to the Vite dev server. To use persisted
+data locally:
+
+1. Create a Postgres database.
+2. Apply `db/schema.sql`.
+3. Copy `.env.example` to `.env.local` and set `DATABASE_URL`.
+4. Run `npm run dev`.
+
+`GRAPH_WORKSPACE_ID` is optional and defaults to `alpha-default-workspace`.
