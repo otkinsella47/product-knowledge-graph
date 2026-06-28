@@ -88,3 +88,10 @@ If `DATABASE_URL` is missing, or if the schema has not been applied, `/api/*`
 graph routes return a diagnostic error instead of silently falling back to
 browser-only storage. This preserves the Phase 5 persistence model while making
 deployment issues easier to diagnose.
+
+If Vercel shows `FUNCTION_INVOCATION_FAILED` for `/api/entities` or
+`/api/relationships`, check the Runtime Logs for the invocation id shown on the
+error page. The most common causes are a `DATABASE_URL` scoped to the wrong
+environment, a database that is not reachable from Vercel, a connection string
+that requires SSL/pooling settings, or a database that has not had
+`db/schema.sql` applied.

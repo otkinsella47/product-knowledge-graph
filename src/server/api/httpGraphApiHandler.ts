@@ -126,6 +126,14 @@ function toGraphHttpServiceError(error: unknown): {
       };
     }
 
+    if (isDatabaseConnectionError(error)) {
+      return {
+        status: 503,
+        message:
+          'Graph persistence database could not be reached. Check DATABASE_URL, database availability, and SSL/pooling settings.',
+      };
+    }
+
     return {
       status: 500,
       message: error.message,
@@ -143,8 +151,22 @@ function isMissingDatabaseSchemaError(error: Error): boolean {
 
   return (
     errorWithCode.code === '42P01' ||
+    error.message.includes('relation "users" does not exist') ||
     error.message.includes('relation "workspaces" does not exist') ||
     error.message.includes('relation "entities" does not exist') ||
     error.message.includes('relation "relationships" does not exist')
+  );
+}
+
+function isDatabaseConnectionError(error: Error): boolean {
+  const errorWithCode = error as Error & { code?: unknown };
+
+  return (
+    errorWithCode.code === 'ETIMEDOUT' ||
+    errorWithCode.code === 'ECONNREFUSED' ||
+    errorWithCode.code === 'ENOTFOUND' ||
+    errorWithCode.code === 'ECONNRESET' ||
+    error.message.includes('Connection terminated unexpectedly') ||
+    error.message.includes('timeout exceeded when trying to connect')
   );
 }
