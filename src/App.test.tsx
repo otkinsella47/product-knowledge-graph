@@ -274,7 +274,51 @@ describe('App', () => {
     expect(
       await screen.findByText(/could not load saved graph data/i),
     ).toBeInTheDocument();
+    expect(screen.getByText(/load failed/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it('keeps demo data loadable after saved graph loading fails', async () => {
+    const user = userEvent.setup();
+    const apiClient = createFailingGraphApiClient();
+
+    renderApp(apiClient);
+
+    expect(
+      await screen.findByText(/could not load saved graph data/i),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /load demo data/i }));
+
+    expect(
+      screen.queryByText(/could not load saved graph data/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText('Build Phase 4 lineage navigation').length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('shows API diagnostics when entity creation fails', async () => {
+    const user = userEvent.setup();
+    const apiClient = createFailingGraphApiClient(
+      'Graph persistence is not configured.',
+    );
+
+    renderApp(apiClient);
+
+    await screen.findByText(/could not load saved graph data/i);
+    await createEntity({
+      user,
+      title: 'Users miss onboarding value',
+      description: 'Research shows onboarding copy is unclear.',
+      type: 'Insight',
+    });
+
+    expect(
+      screen.getByText(
+        /could not save this entity\. graph persistence is not configured/i,
+      ),
+    ).toBeInTheDocument();
   });
 
   it('shows general lineage from a selected insight to downstream decisions and outcomes', async () => {
@@ -810,25 +854,25 @@ function createTestGraphApiClient(): GraphApiClient {
   };
 }
 
-function createFailingGraphApiClient(): GraphApiClient {
+function createFailingGraphApiClient(message = 'Load failed.'): GraphApiClient {
   return {
     loadGraph() {
-      return Promise.reject(new Error('Load failed.'));
+      return Promise.reject(new Error(message));
     },
     createEntity() {
-      return Promise.reject(new Error('Load failed.'));
+      return Promise.reject(new Error(message));
     },
     updateEntity() {
-      return Promise.reject(new Error('Load failed.'));
+      return Promise.reject(new Error(message));
     },
     deleteEntity() {
-      return Promise.reject(new Error('Load failed.'));
+      return Promise.reject(new Error(message));
     },
     createRelationship() {
-      return Promise.reject(new Error('Load failed.'));
+      return Promise.reject(new Error(message));
     },
     deleteRelationship() {
-      return Promise.reject(new Error('Load failed.'));
+      return Promise.reject(new Error(message));
     },
   };
 }

@@ -40,6 +40,13 @@ export type PostgresQueryClient = {
   }>;
 };
 
+export type PersistedUser = {
+  id: string;
+  email: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 type PostgresGraphRepositoryOptions = {
   client: PostgresQueryClient;
   workspaceId: string;
@@ -68,6 +75,21 @@ type RelationshipRow = QueryResultRow & {
   updated_at: Date | string;
 };
 
+type UserRow = QueryResultRow & {
+  id: string;
+  email: string;
+  created_at: Date | string;
+  updated_at: Date | string;
+};
+
+type WorkspaceRow = QueryResultRow & {
+  id: string;
+  owner_user_id: string | null;
+  name: string;
+  created_at: Date | string;
+  updated_at: Date | string;
+};
+
 export function createPostgresPoolFromEnv(): Pool {
   const connectionString = process.env.DATABASE_URL;
 
@@ -86,11 +108,75 @@ export async function ensureWorkspace(
   const timestamp = new Date().toISOString();
 
   await client.query(
-    `insert into workspaces (id, name, created_at, updated_at)
-    values ($1, $2, $3, $3)
+    `insert into workspaces (id, owner_user_id, name, created_at, updated_at)
+    values ($1, null, $2, $3, $3)
     on conflict (id) do nothing`,
     [workspaceId, name, timestamp],
   );
+}
+
+export async function ensureUserDefaultWorkspace(
+  client: PostgresQueryClient,
+  {
+    email,
+    createId = randomUUID,
+  }: {
+    email: string;
+    createId?: () => string;
+  },
+): Promise<{
+  user: PersistedUser;
+  workspaceId: string;
+}> {
+  const normalisedEmail = normaliseEmail(email);
+
+  if (!normalisedEmail) {
+    throw new Error('Authenticated user email is required.');
+  }
+
+  const timestamp = new Date().toISOString();
+  const userResult = await client.query<UserRow>(
+    `insert into users (id, email, created_at, updated_at)
+    values ($1, $2, $3, $3)
+    on conflict (email) do update
+      set updated_at = users.updated_at
+    returning *`,
+    [createId(), normalisedEmail, timestamp],
+  );
+  const user = mapUserRow(userResult.rows[0]);
+  const existingWorkspaceResult = await client.query<WorkspaceRow>(
+    `select *
+    from workspaces
+    where owner_user_id = $1
+    order by created_at asc, id asc
+    limit 1`,
+    [user.id],
+  );
+  const existingWorkspace = existingWorkspaceResult.rows[0];
+
+  if (existingWorkspace) {
+    return {
+      user,
+      workspaceId: existingWorkspace.id,
+    };
+  }
+
+  const workspaceResult = await client.query<WorkspaceRow>(
+    `insert into workspaces (id, owner_user_id, name, created_at, updated_at)
+    values ($1, $2, $3, $4, $4)
+    returning *`,
+    [
+      createId(),
+      user.id,
+      `${user.email} default workspace`,
+      timestamp,
+    ],
+  );
+
+  return {
+    user,
+    workspaceId: workspaceResult.rows[0].id,
+  };
 }
 
 export function createPostgresGraphRepository({
@@ -336,6 +422,19 @@ function mapRelationshipRow(row: RelationshipRow): Relationship {
     createdAt: formatTimestamp(row.created_at),
     updatedAt: formatTimestamp(row.updated_at),
   };
+}
+
+function mapUserRow(row: UserRow): PersistedUser {
+  return {
+    id: row.id,
+    email: row.email,
+    createdAt: formatTimestamp(row.created_at),
+    updatedAt: formatTimestamp(row.updated_at),
+  };
+}
+
+function normaliseEmail(email: string): string {
+  return email.trim().toLowerCase();
 }
 
 function formatTimestamp(value: Date | string): string {
