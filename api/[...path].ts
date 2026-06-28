@@ -1,5 +1,4 @@
 import { type IncomingMessage, type ServerResponse } from 'node:http';
-import { handleGraphHttpRequest } from '../src/server/api/httpGraphApiHandler';
 
 export default async function handler(
   request: IncomingMessage & {
@@ -9,9 +8,22 @@ export default async function handler(
   response: ServerResponse,
 ) {
   try {
+    console.error('Graph API adapter entered', {
+      method: request.method,
+      url: request.url,
+    });
+
+    const path = createApiPath(request);
+    console.error('Graph API adapter parsed path', { path });
+
+    const { handleGraphHttpRequest } = await import(
+      '../src/server/api/httpGraphApiHandler'
+    );
+    console.error('Graph API handler imported');
+
     const result = await handleGraphHttpRequest({
       method: request.method ?? 'GET',
-      path: createApiPath(request),
+      path,
       cookieHeader: request.headers.cookie,
       authorizationHeader: request.headers.authorization,
       accessTokenHeader: request.headers['x-alpha-access-token'],

@@ -95,3 +95,9 @@ error page. The most common causes are a `DATABASE_URL` scoped to the wrong
 environment, a database that is not reachable from Vercel, a connection string
 that requires SSL/pooling settings, or a database that has not had
 `db/schema.sql` applied.
+
+Temporary production diagnostics:
+
+- `/api/health` verifies that a minimal Vercel API function can return JSON.
+- `/api/health/db` verifies server-side database module import, pool creation
+  and a `select 1` query without exposing `DATABASE_URL`.
