@@ -1,6 +1,11 @@
 import { type FormEvent, useMemo, useState } from 'react';
 import { type Entity, type Relationship } from './domain/graph';
-import { createGraphEngine, type GraphEngine } from './domain/graphEngine';
+import {
+  createGraphEngine,
+  type DecisionTraceabilitySummary,
+  type GraphEngine,
+  type LineagePath,
+} from './domain/graphEngine';
 import { createInMemoryGraphRepository } from './domain/graphRepository';
 import {
   type EntityType,
@@ -74,6 +79,10 @@ function App() {
           entity.type === selectedRelationshipRule.target,
       )
     : [];
+  const decisionTraceabilitySummary =
+    selectedEntity?.type === 'decision'
+      ? graphEngine.getDecisionTraceabilitySummary(selectedEntity.id)
+      : undefined;
 
   const filteredEntities = useMemo(() => {
     const normalisedSearchQuery = searchQuery.trim().toLowerCase();
@@ -629,6 +638,12 @@ function App() {
                     </form>
                   </section>
 
+                  {decisionTraceabilitySummary ? (
+                    <DecisionTraceabilitySection
+                      summary={decisionTraceabilitySummary}
+                    />
+                  ) : null}
+
                   <div className="mt-6 flex flex-wrap gap-3">
                     <button
                       className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
@@ -657,6 +672,133 @@ function App() {
         </section>
       </div>
     </main>
+  );
+}
+
+function DecisionTraceabilitySection({
+  summary,
+}: {
+  summary: DecisionTraceabilitySummary;
+}) {
+  return (
+    <section
+      aria-label="Decision traceability"
+      className="mt-6 border-t border-slate-200 pt-4"
+    >
+      <div className="flex flex-col gap-1">
+        <h4 className="text-base font-semibold text-slate-950">
+          Decision traceability
+        </h4>
+        <p className="text-sm leading-6 text-slate-600">
+          Review the knowledge paths connected to this decision.
+        </p>
+      </div>
+
+      <TraceabilityPathGroup
+        emptyDescription="No supporting lineage is connected yet."
+        paths={summary.supportingLineagePaths}
+        title="Supporting lineage"
+      />
+      <TraceabilityPathGroup
+        emptyDescription="No downstream outcomes are connected yet."
+        paths={summary.downstreamOutcomePaths}
+        title="Downstream outcomes"
+      />
+
+      <section className="mt-4">
+        <h5 className="text-sm font-semibold text-slate-950">Lineage gaps</h5>
+        {summary.lineageGaps.length > 0 ? (
+          <ul className="mt-2 grid gap-2">
+            {summary.lineageGaps.map((gap) => (
+              <li
+                className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2"
+                key={gap.code}
+              >
+                <p className="text-sm font-medium text-amber-900">{gap.label}</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">
+                  {gap.message}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
+            No lineage gaps found for this decision.
+          </p>
+        )}
+      </section>
+    </section>
+  );
+}
+
+function TraceabilityPathGroup({
+  emptyDescription,
+  paths,
+  title,
+}: {
+  emptyDescription: string;
+  paths: LineagePath[];
+  title: string;
+}) {
+  return (
+    <section className="mt-4">
+      <div className="flex items-center justify-between gap-3">
+        <h5 className="text-sm font-semibold text-slate-950">{title}</h5>
+        <p className="text-xs font-medium text-slate-500">
+          {paths.length} {paths.length === 1 ? 'path' : 'paths'}
+        </p>
+      </div>
+
+      {paths.length > 0 ? (
+        <ul className="mt-2 grid gap-3">
+          {paths.map((path) => (
+            <li
+              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3"
+              key={createLineagePathKey(path)}
+            >
+              <LineagePathView path={path} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
+          {emptyDescription}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function LineagePathView({ path }: { path: LineagePath }) {
+  const firstSegment = path.segments[0];
+
+  if (!firstSegment) {
+    return null;
+  }
+
+  return (
+    <ol className="grid gap-2 text-sm">
+      <li>
+        <EntityStep entity={firstSegment.sourceEntity} label={firstSegment.sourceLabel} />
+      </li>
+      {path.segments.map((segment) => (
+        <li className="grid gap-2" key={segment.relationship.id}>
+          <p className="pl-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {segment.relationshipLabel}
+          </p>
+          <EntityStep entity={segment.targetEntity} label={segment.targetLabel} />
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function EntityStep({ entity, label }: { entity: Entity; label: string }) {
+  return (
+    <p className="leading-6 text-slate-700">
+      <span className="font-semibold text-slate-950">{label}:</span>{' '}
+      {entity.title}
+    </p>
   );
 }
 
@@ -705,6 +847,15 @@ function formatRelationshipStatement(
   } ${entityTypeConfigs[targetEntity.type].label}: ${sourceEntity.title} -> ${
     targetEntity.title
   }`;
+}
+
+function createLineagePathKey(path: LineagePath) {
+  return [
+    path.direction,
+    path.startEntity.id,
+    path.endEntity.id,
+    ...path.segments.map((segment) => segment.relationship.id),
+  ].join('-');
 }
 
 export default App;

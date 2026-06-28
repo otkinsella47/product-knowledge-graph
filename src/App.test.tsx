@@ -216,6 +216,163 @@ describe('App', () => {
 
     expect(screen.getByText(/choose a target entity/i)).toBeInTheDocument();
   });
+
+  it('shows decision traceability for a selected decision', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await createEntity({
+      user,
+      title: 'Interview notes',
+      description: 'User interview source material.',
+      type: 'Research',
+    });
+    await createEntity({
+      user,
+      title: 'Users lose decision context',
+      description: 'An interpreted research finding.',
+      type: 'Insight',
+    });
+    await createEntity({
+      user,
+      title: 'Preserve decision rationale',
+      description: 'A product opportunity.',
+      type: 'Opportunity',
+    });
+    await createEntity({
+      user,
+      title: 'Decision traceability view',
+      description: 'A proposed way to navigate lineage.',
+      type: 'Solution',
+    });
+    await createEntity({
+      user,
+      title: 'Prototype test',
+      description: 'A test of the proposed traceability view.',
+      type: 'Experiment',
+    });
+    await createEntity({
+      user,
+      title: 'Build lineage navigation',
+      description: 'Decision to build Phase 4 lineage navigation.',
+      type: 'Decision',
+    });
+    await createEntity({
+      user,
+      title: 'Reviewers understood rationale',
+      description: 'Outcome from reviewing the traceability flow.',
+      type: 'Outcome',
+    });
+
+    await user.click(screen.getByText('Interview notes'));
+    await addRelationship({
+      user,
+      relationship: 'produces',
+      target: 'Users lose decision context',
+    });
+    await user.click(screen.getByText('Users lose decision context'));
+    await addRelationship({
+      user,
+      relationship: 'reveals',
+      target: 'Preserve decision rationale',
+    });
+    await user.click(screen.getByText('Preserve decision rationale'));
+    await addRelationship({
+      user,
+      relationship: 'motivates',
+      target: 'Decision traceability view',
+    });
+    await user.click(screen.getByText('Decision traceability view'));
+    await addRelationship({
+      user,
+      relationship: 'validated_by',
+      target: 'Prototype test',
+    });
+    await user.click(screen.getByText('Prototype test'));
+    await addRelationship({
+      user,
+      relationship: 'informs',
+      target: 'Build lineage navigation',
+    });
+    await user.click(screen.getByText('Build lineage navigation'));
+    await addRelationship({
+      user,
+      relationship: 'influences',
+      target: 'Reviewers understood rationale',
+    });
+
+    const traceabilitySection = screen.getByRole('region', {
+      name: /decision traceability/i,
+    });
+
+    expect(
+      within(traceabilitySection).getByRole('heading', {
+        name: /supporting lineage/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(traceabilitySection).getByRole('heading', {
+        name: /downstream outcomes/i,
+      }),
+    ).toBeInTheDocument();
+    expect(within(traceabilitySection).getByText(/research:/i)).toBeInTheDocument();
+    expect(
+      within(traceabilitySection).getByText('Interview notes'),
+    ).toBeInTheDocument();
+    expect(
+      within(traceabilitySection).getAllByText(/validated by/i).length,
+    ).toBeGreaterThan(0);
+    expect(
+      within(traceabilitySection).getByText('Reviewers understood rationale'),
+    ).toBeInTheDocument();
+    expect(
+      within(traceabilitySection).getByText(/no lineage gaps found/i),
+    ).toBeInTheDocument();
+  });
+
+  it('shows decision traceability gaps for a decision with missing connections', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await createEntity({
+      user,
+      title: 'Build lineage navigation',
+      description: 'Decision to build Phase 4 lineage navigation.',
+      type: 'Decision',
+    });
+
+    const traceabilitySection = screen.getByRole('region', {
+      name: /decision traceability/i,
+    });
+
+    expect(
+      within(traceabilitySection).getByText(
+        /no supporting lineage is connected yet/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(traceabilitySection).getByText(
+        /no downstream outcomes are connected yet/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(traceabilitySection).getByText(
+        /no incoming supporting lineage is connected to this decision/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(traceabilitySection).getByText(
+        /no upstream research, insight or experiment is connected to this decision/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(traceabilitySection).getByText(
+        /no downstream outcome is connected to this decision/i,
+      ),
+    ).toBeInTheDocument();
+  });
 });
 
 async function createEntity({
