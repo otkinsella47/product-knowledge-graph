@@ -17,6 +17,7 @@ workspace.
   Outcome entities.
 - Select **Pilot unsupported prioritisation view** and confirm the lineage gap
   messages identify missing incoming support and no downstream outcome.
-- Create a new entity, add a valid relationship, remove the relationship, edit
-  the entity and delete it to confirm the direct relationship workflows still
-  work after loading or resetting demo data.
+- Create a new entity, use **Connect this entity** to add a valid direct
+  connection, remove the connection, edit the entity and delete it to confirm
+  the direct connection workflows still work after loading or resetting demo
+  data.

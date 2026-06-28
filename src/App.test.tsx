@@ -153,7 +153,7 @@ describe('App', () => {
         /research produces insight: interview notes -> users miss onboarding value/i,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/outgoing link/i)).toBeInTheDocument();
+    expect(screen.getByText(/follows from this/i)).toBeInTheDocument();
 
     await selectEntity(user, 'Users miss onboarding value');
 
@@ -162,12 +162,12 @@ describe('App', () => {
         /research produces insight: interview notes -> users miss onboarding value/i,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/incoming link/i)).toBeInTheDocument();
+    expect(screen.getByText(/leads into this/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /remove/i }));
 
     expect(screen.queryByText(/research produces insight/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/no relationships yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/no direct connections yet/i)).toBeInTheDocument();
   });
 
   it('filters relationship targets to valid entity types', async () => {
@@ -191,11 +191,11 @@ describe('App', () => {
     await user.click(screen.getByText('Interview notes'));
 
     const relationshipForm = screen.getByRole('form', {
-      name: /add relationship/i,
+      name: /connect this entity/i,
     });
 
     await user.selectOptions(
-      within(relationshipForm).getByLabelText(/^relationship$/i),
+      within(relationshipForm).getByLabelText(/^connection type$/i),
       'produces',
     );
 
@@ -205,16 +205,16 @@ describe('App', () => {
       }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText(/create a insight entity before adding this relationship/i),
+      screen.getByText(/create an insight before this research can be connected/i),
     ).toBeInTheDocument();
 
     await user.click(
       within(relationshipForm).getByRole('button', {
-        name: /add relationship/i,
+        name: /connect entity/i,
       }),
     );
 
-    expect(screen.getByText(/choose a target entity/i)).toBeInTheDocument();
+    expect(screen.getByText(/choose an entity to connect to/i)).toBeInTheDocument();
   });
 
   it('shows general lineage from a selected insight to downstream decisions and outcomes', async () => {
@@ -301,7 +301,9 @@ describe('App', () => {
       within(lineageSection).getByRole('heading', { name: /what followed/i }),
     ).toBeInTheDocument();
     expect(
-      within(lineageSection).getByText(/no upstream lineage is connected yet/i),
+      within(lineageSection).getByText(
+        /nothing leads here yet\. connect research, an experiment or an outcome/i,
+      ),
     ).toBeInTheDocument();
     expect(
       within(lineageSection).getAllByText('Preserve decision rationale').length,
@@ -332,10 +334,12 @@ describe('App', () => {
     const lineageSection = screen.getByRole('region', { name: /^lineage$/i });
 
     expect(
-      within(lineageSection).getByText(/no upstream lineage is connected yet/i),
+      within(lineageSection).getByText(/research can start a new knowledge path/i),
     ).toBeInTheDocument();
     expect(
-      within(lineageSection).getByText(/no downstream lineage is connected yet/i),
+      within(lineageSection).getByText(
+        /connect this research to an insight it produced/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -471,12 +475,12 @@ describe('App', () => {
 
     expect(
       within(traceabilitySection).getByText(
-        /no supporting lineage is connected yet/i,
+        /nothing supports this decision yet/i,
       ),
     ).toBeInTheDocument();
     expect(
       within(traceabilitySection).getByText(
-        /no downstream outcomes are connected yet/i,
+        /no outcome is connected yet/i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -610,14 +614,14 @@ async function addRelationship({
   relationship: string;
   target: string;
 }) {
-  const form = screen.getByRole('form', { name: /add relationship/i });
+  const form = screen.getByRole('form', { name: /connect this entity/i });
 
   await user.selectOptions(
-    within(form).getByLabelText(/^relationship$/i),
+    within(form).getByLabelText(/^connection type$/i),
     relationship,
   );
-  await user.selectOptions(within(form).getByLabelText(/^target entity$/i), target);
+  await user.selectOptions(within(form).getByLabelText(/^connect to$/i), target);
   await user.click(
-    within(form).getByRole('button', { name: /add relationship/i }),
+    within(form).getByRole('button', { name: /connect entity/i }),
   );
 }

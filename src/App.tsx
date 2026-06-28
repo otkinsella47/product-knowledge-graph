@@ -12,6 +12,7 @@ import {
 } from './domain/graphEngine';
 import { createInMemoryGraphRepository } from './domain/graphRepository';
 import {
+  type AllowedRelationship,
   type EntityType,
   type RelationshipType,
   entityTypeConfigs,
@@ -204,6 +205,19 @@ function App() {
           entity.type === selectedRelationshipRule.target,
       )
     : [];
+  const selectedTargetEntity = relationshipFormState.targetEntityId
+    ? entities.find(
+        (entity) => entity.id === relationshipFormState.targetEntityId,
+      )
+    : undefined;
+  const connectionPreview =
+    selectedEntity && selectedRelationshipRule && selectedTargetEntity
+      ? formatConnectionPreview(
+          selectedEntity,
+          selectedRelationshipRule.relationship,
+          selectedTargetEntity,
+        )
+      : undefined;
   const decisionTraceabilitySummary =
     selectedEntity?.type === 'decision'
       ? graphEngine.getDecisionTraceabilitySummary(selectedEntity.id)
@@ -339,12 +353,12 @@ function App() {
     }
 
     if (!relationshipFormState.relationship) {
-      setRelationshipError('Choose a relationship type.');
+      setRelationshipError('Choose a connection type.');
       return;
     }
 
     if (!relationshipFormState.targetEntityId) {
-      setRelationshipError('Choose a target entity.');
+      setRelationshipError('Choose an entity to connect to.');
       return;
     }
 
@@ -674,15 +688,37 @@ function App() {
                     </div>
                   </dl>
 
+                  {decisionTraceabilitySummary ? (
+                    <DecisionTraceabilitySection
+                      summary={decisionTraceabilitySummary}
+                    />
+                  ) : null}
+
+                  {selectedEntityLineage ? (
+                    <LineageSection
+                      backwardPaths={selectedEntityLineage.backwardPaths}
+                      entity={selectedEntity}
+                      forwardPaths={selectedEntityLineage.forwardPaths}
+                      title={
+                        selectedEntity.type === 'decision'
+                          ? 'All lineage paths'
+                          : 'Lineage'
+                      }
+                    />
+                  ) : null}
+
                   <section className="mt-6 border-t border-slate-200 pt-4">
                     <div className="flex items-center justify-between gap-3">
                       <h4 className="text-base font-semibold text-slate-950">
-                        Relationships
+                        Direct connections
                       </h4>
                       <p className="text-sm text-slate-500">
                         {selectedEntityRelationships.length} connected
                       </p>
                     </div>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      Immediate links used to build the lineage paths above.
+                    </p>
 
                     {selectedEntityRelationships.length > 0 ? (
                       <ul className="mt-3 divide-y divide-slate-200 rounded-md border border-slate-200">
@@ -715,7 +751,9 @@ function App() {
                                   )}
                                 </p>
                                 <p className="mt-1 text-xs text-slate-500">
-                                  {isOutgoing ? 'Outgoing' : 'Incoming'} link
+                                  {isOutgoing
+                                    ? 'Follows from this'
+                                    : 'Leads into this'}
                                 </p>
                               </div>
                               <button
@@ -733,21 +771,37 @@ function App() {
                       </ul>
                     ) : (
                       <p className="mt-3 rounded-md bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-600">
-                        No relationships yet for this entity.
+                        No direct connections yet for this entity.
                       </p>
                     )}
 
                     <form
-                      aria-label="Add relationship"
+                      aria-label="Connect this entity"
                       className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3"
                       onSubmit={handleRelationshipSubmit}
                     >
                       <h5 className="text-sm font-semibold text-slate-950">
-                        Add outgoing relationship
+                        Connect this entity
                       </h5>
+                      {allowedRelationshipRules.length > 0 ? (
+                        <ul className="mt-2 grid gap-1 text-sm leading-6 text-slate-600">
+                          {allowedRelationshipRules.map((allowedRelationship) => (
+                            <li
+                              key={`${allowedRelationship.relationship}-${allowedRelationship.target}`}
+                            >
+                              {formatConnectionHint(allowedRelationship)}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          This entity has no next-step connections in the v0.1
+                          ontology.
+                        </p>
+                      )}
                       <div className="mt-3 grid gap-3">
                         <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-                          Relationship
+                          Connection type
                           <select
                             className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-100"
                             onChange={(event) =>
@@ -759,7 +813,7 @@ function App() {
                             }
                             value={relationshipFormState.relationship}
                           >
-                            <option value="">Choose relationship</option>
+                            <option value="">Choose connection type</option>
                             {allowedRelationshipRules.map((allowedRelationship) => (
                               <option
                                 key={`${allowedRelationship.relationship}-${allowedRelationship.target}`}
@@ -778,7 +832,7 @@ function App() {
                         </label>
 
                         <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-                          Target entity
+                          Connect to
                           <select
                             className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-100 disabled:bg-slate-100"
                             disabled={!relationshipFormState.relationship}
@@ -799,7 +853,7 @@ function App() {
                                       selectedRelationshipRule.target
                                     ].label
                                   }`
-                                : 'Choose relationship first'}
+                                : 'Choose connection type first'}
                             </option>
                             {validTargetEntities.map((entity) => (
                               <option key={entity.id} value={entity.id}>
@@ -812,9 +866,19 @@ function App() {
                         {selectedRelationshipRule &&
                         validTargetEntities.length === 0 ? (
                           <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                            Create a{' '}
-                            {entityTypeConfigs[selectedRelationshipRule.target].label}{' '}
-                            entity before adding this relationship.
+                            Create{' '}
+                            {formatEntityTypeWithArticle(
+                              selectedRelationshipRule.target,
+                            )}{' '}
+                            before this{' '}
+                            {entityTypeConfigs[selectedRelationshipRule.source].label}{' '}
+                            can be connected.
+                          </p>
+                        ) : null}
+
+                        {connectionPreview ? (
+                          <p className="rounded-md bg-cyan-50 px-3 py-2 text-sm leading-6 text-cyan-900">
+                            Preview: {connectionPreview}
                           </p>
                         ) : null}
 
@@ -828,24 +892,11 @@ function App() {
                           className="rounded-md bg-cyan-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-cyan-800"
                           type="submit"
                         >
-                          Add relationship
+                          Connect entity
                         </button>
                       </div>
                     </form>
                   </section>
-
-                  {selectedEntityLineage ? (
-                    <LineageSection
-                      backwardPaths={selectedEntityLineage.backwardPaths}
-                      forwardPaths={selectedEntityLineage.forwardPaths}
-                    />
-                  ) : null}
-
-                  {decisionTraceabilitySummary ? (
-                    <DecisionTraceabilitySection
-                      summary={decisionTraceabilitySummary}
-                    />
-                  ) : null}
 
                   <div className="mt-6 flex flex-wrap gap-3">
                     <button
@@ -880,30 +931,34 @@ function App() {
 
 function LineageSection({
   backwardPaths,
+  entity,
   forwardPaths,
+  title,
 }: {
   backwardPaths: LineagePath[];
+  entity: Entity;
   forwardPaths: LineagePath[];
+  title: string;
 }) {
   return (
     <section
-      aria-label="Lineage"
+      aria-label={title}
       className="mt-6 border-t border-slate-200 pt-4"
     >
       <div className="flex flex-col gap-1">
-        <h4 className="text-base font-semibold text-slate-950">Lineage</h4>
+        <h4 className="text-base font-semibold text-slate-950">{title}</h4>
         <p className="text-sm leading-6 text-slate-600">
-          Follow how knowledge flows into and out of this entity.
+          {getLineageDescription(entity.type)}
         </p>
       </div>
 
       <TraceabilityPathGroup
-        emptyDescription="No upstream lineage is connected yet."
+        emptyDescription={getLineageEmptyDescription(entity.type, 'backward')}
         paths={backwardPaths}
         title="What led here"
       />
       <TraceabilityPathGroup
-        emptyDescription="No downstream lineage is connected yet."
+        emptyDescription={getLineageEmptyDescription(entity.type, 'forward')}
         paths={forwardPaths}
         title="What followed"
       />
@@ -931,12 +986,12 @@ function DecisionTraceabilitySection({
       </div>
 
       <TraceabilityPathGroup
-        emptyDescription="No supporting lineage is connected yet."
+        emptyDescription="Nothing supports this decision yet. Connect an Insight or Experiment that informed it."
         paths={summary.supportingLineagePaths}
         title="Supporting lineage"
       />
       <TraceabilityPathGroup
-        emptyDescription="No downstream outcomes are connected yet."
+        emptyDescription="No outcome is connected yet. Connect an Outcome when you know what happened after the decision."
         paths={summary.downstreamOutcomePaths}
         title="Downstream outcomes"
       />
@@ -1064,6 +1119,93 @@ function EmptyState({
       </p>
     </div>
   );
+}
+
+function getLineageDescription(entityType: EntityType) {
+  const descriptions: Record<EntityType, string> = {
+    research: 'See which insights, decisions and outcomes this research influenced.',
+    insight: 'See which opportunities, decisions and outcomes this insight influenced.',
+    goal: 'See which opportunities this goal frames or is supported by.',
+    opportunity:
+      'See what revealed this opportunity and which solutions followed.',
+    solution: 'See what motivated this solution and how it was tested.',
+    experiment: 'See what led to this experiment and which decisions it informed.',
+    decision: 'See what supported this decision and what happened afterwards.',
+    outcome: 'See which decision led here and what new insight emerged.',
+  };
+
+  return descriptions[entityType];
+}
+
+function getLineageEmptyDescription(
+  entityType: EntityType,
+  direction: 'backward' | 'forward',
+) {
+  if (direction === 'backward') {
+    const descriptions: Record<EntityType, string> = {
+      research: 'Nothing leads here yet. Research can start a new knowledge path.',
+      insight:
+        'Nothing leads here yet. Connect Research, an Experiment or an Outcome that produced this Insight.',
+      goal:
+        'Nothing leads here yet. Connect an Opportunity that this Goal supports if relevant.',
+      opportunity:
+        'Nothing leads here yet. Connect an Insight that revealed this Opportunity or a Goal that frames it.',
+      solution:
+        'Nothing leads here yet. Connect the Opportunity that motivated this Solution.',
+      experiment:
+        'Nothing leads here yet. Connect the Solution this Experiment tested.',
+      decision:
+        'Nothing leads here yet. Connect an Insight or Experiment that informed this Decision.',
+      outcome:
+        'Nothing leads here yet. Connect the Decision that influenced this Outcome.',
+    };
+
+    return descriptions[entityType];
+  }
+
+  const descriptions: Record<EntityType, string> = {
+    research:
+      'Nothing follows from this yet. Connect this Research to an Insight it produced.',
+    insight:
+      'Nothing follows from this yet. Connect this Insight to an Opportunity or Decision.',
+    goal:
+      'Nothing follows from this yet. Connect this Goal to an Opportunity it frames.',
+    opportunity:
+      'Nothing follows from this yet. Connect this Opportunity to a Goal or Solution.',
+    solution:
+      'Nothing follows from this yet. Connect this Solution to an Experiment that tested it.',
+    experiment:
+      'Nothing follows from this yet. Connect this Experiment to a Decision or Insight it informed.',
+    decision:
+      'Nothing follows from this yet. Connect this Decision to an Outcome when one exists.',
+    outcome:
+      'Nothing follows from this yet. Connect this Outcome to an Insight it produced if there is learning to preserve.',
+  };
+
+  return descriptions[entityType];
+}
+
+function formatConnectionHint(allowedRelationship: AllowedRelationship) {
+  return `This ${entityTypeConfigs[allowedRelationship.source].label} can ${
+    relationshipTypeConfigs[allowedRelationship.relationship].label
+  } ${formatEntityTypeWithArticle(allowedRelationship.target)}.`;
+}
+
+function formatConnectionPreview(
+  sourceEntity: Entity,
+  relationshipType: RelationshipType,
+  targetEntity: Entity,
+) {
+  return `${sourceEntity.title} ${
+    relationshipTypeConfigs[relationshipType].label
+  } ${targetEntity.title}`;
+}
+
+function formatEntityTypeWithArticle(entityType: EntityType) {
+  const label = entityTypeConfigs[entityType].label;
+  const article = /^[aeiou]/i.test(label) ? 'an' : 'a';
+
+  return `${article} ${label}`;
 }
 
 function formatTimestamp(timestamp: string) {
