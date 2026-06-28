@@ -4,10 +4,35 @@ import { GraphEngineError } from '../../domain/graphEngine';
 import { createPersistentGraphEngine } from '../domain/persistentGraphEngine';
 import {
   createPostgresGraphRepository,
+  createPostgresPoolFromEnv,
   type PostgresQueryClient,
 } from './postgresGraphRepository';
 
 describe('postgres graph repository', () => {
+  it('configures a bounded pool for serverless graph API requests', async () => {
+    const previousDatabaseUrl = process.env.DATABASE_URL;
+
+    process.env.DATABASE_URL =
+      'postgres://user:password@localhost:5432/product_knowledge_graph';
+
+    try {
+      const pool = createPostgresPoolFromEnv();
+      const options = pool.options as {
+        connectionTimeoutMillis?: number;
+        idleTimeoutMillis?: number;
+        max?: number;
+      };
+
+      expect(options.connectionTimeoutMillis).toBe(5_000);
+      expect(options.idleTimeoutMillis).toBe(10_000);
+      expect(options.max).toBe(1);
+
+      await pool.end();
+    } finally {
+      restoreEnv('DATABASE_URL', previousDatabaseUrl);
+    }
+  });
+
   it('saves and loads entities in a workspace', async () => {
     const client = new FakePostgresClient();
     const repository = createTestRepository(client, 'workspace-a');
@@ -386,6 +411,14 @@ function createTestIdGenerator(): () => string {
   let nextId = 1;
 
   return () => `test-id-${nextId++}`;
+}
+
+function restoreEnv(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
 }
 
 function createResult<Row>(rows: Row[]) {

@@ -97,7 +97,12 @@ export function createPostgresPoolFromEnv(): Pool {
     throw new Error('DATABASE_URL is required for Postgres persistence.');
   }
 
-  return new Pool({ connectionString });
+  return new Pool({
+    connectionString,
+    connectionTimeoutMillis: 5_000,
+    idleTimeoutMillis: 10_000,
+    max: 1,
+  });
 }
 
 export async function ensureWorkspace(

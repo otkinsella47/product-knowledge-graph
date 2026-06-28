@@ -8,26 +8,39 @@ export default async function handler(
   },
   response: ServerResponse,
 ) {
-  const result = await handleGraphHttpRequest({
-    method: request.method ?? 'GET',
-    path: createApiPath(request),
-    cookieHeader: request.headers.cookie,
-    authorizationHeader: request.headers.authorization,
-    accessTokenHeader: request.headers['x-alpha-access-token'],
-    body: request.body ?? (await readJsonBody(request)),
-  });
+  try {
+    const result = await handleGraphHttpRequest({
+      method: request.method ?? 'GET',
+      path: createApiPath(request),
+      cookieHeader: request.headers.cookie,
+      authorizationHeader: request.headers.authorization,
+      accessTokenHeader: request.headers['x-alpha-access-token'],
+      body: request.body ?? (await readJsonBody(request)),
+    });
 
-  response.statusCode = result.status;
-  Object.entries(result.headers).forEach(([name, value]) => {
-    response.setHeader(name, value);
-  });
+    response.statusCode = result.status;
+    Object.entries(result.headers).forEach(([name, value]) => {
+      response.setHeader(name, value);
+    });
 
-  if (result.body === undefined) {
-    response.end();
-    return;
+    if (result.body === undefined) {
+      response.end();
+      return;
+    }
+
+    response.end(JSON.stringify(result.body));
+  } catch (error) {
+    console.error('Unhandled graph API adapter error', error);
+
+    response.statusCode = 500;
+    response.setHeader('content-type', 'application/json');
+    response.end(
+      JSON.stringify({
+        error:
+          'Graph API failed before the request could be handled. Check serverless function logs for details.',
+      }),
+    );
   }
-
-  response.end(JSON.stringify(result.body));
 }
 
 function createApiPath(

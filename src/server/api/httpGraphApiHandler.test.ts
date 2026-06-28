@@ -76,6 +76,62 @@ describe('graph HTTP API handler', () => {
       },
     });
   });
+
+  it('returns a clear schema error when alpha user tables are missing', async () => {
+    const previousAuthEnabled = process.env.ALPHA_AUTH_ENABLED;
+    const previousToken = process.env.ALPHA_ACCESS_TOKEN;
+    const previousEmail = process.env.ALPHA_USER_EMAIL;
+
+    process.env.ALPHA_AUTH_ENABLED = 'true';
+    process.env.ALPHA_ACCESS_TOKEN = 'test-token';
+    process.env.ALPHA_USER_EMAIL = 'alpha@example.com';
+
+    try {
+      await expect(
+        handleGraphHttpRequest(
+          {
+            method: 'GET',
+            path: '/api/entities',
+            accessTokenHeader: 'test-token',
+          },
+          {
+            client: new MissingUsersSchemaClient(),
+          },
+        ),
+      ).resolves.toMatchObject({
+        status: 503,
+        body: {
+          error:
+            'Graph persistence tables are missing. Apply db/schema.sql to the configured database.',
+        },
+      });
+    } finally {
+      restoreEnv('ALPHA_AUTH_ENABLED', previousAuthEnabled);
+      restoreEnv('ALPHA_ACCESS_TOKEN', previousToken);
+      restoreEnv('ALPHA_USER_EMAIL', previousEmail);
+    }
+  });
+
+  it('returns a clear database connection error', async () => {
+    await expect(
+      handleGraphHttpRequest(
+        {
+          method: 'GET',
+          path: '/api/entities',
+        },
+        {
+          client: new ConnectionFailureClient(),
+          workspaceId: 'workspace-a',
+        },
+      ),
+    ).resolves.toMatchObject({
+      status: 503,
+      body: {
+        error:
+          'Graph persistence database could not be reached. Check DATABASE_URL, database availability, and SSL/pooling settings.',
+      },
+    });
+  });
 });
 
 class MissingSchemaClient implements PostgresQueryClient {
@@ -88,6 +144,38 @@ class MissingSchemaClient implements PostgresQueryClient {
     };
 
     error.code = '42P01';
+
+    return Promise.reject(error);
+  }
+}
+
+class MissingUsersSchemaClient implements PostgresQueryClient {
+  query<Row extends QueryResultRow = QueryResultRow>(): Promise<{
+    rows: Row[];
+    rowCount: number;
+  }> {
+    const error = new Error('relation "users" does not exist') as Error & {
+      code: string;
+    };
+
+    error.code = '42P01';
+
+    return Promise.reject(error);
+  }
+}
+
+class ConnectionFailureClient implements PostgresQueryClient {
+  query<Row extends QueryResultRow = QueryResultRow>(): Promise<{
+    rows: Row[];
+    rowCount: number;
+  }> {
+    const error = new Error(
+      'timeout exceeded when trying to connect',
+    ) as Error & {
+      code: string;
+    };
+
+    error.code = 'ETIMEDOUT';
 
     return Promise.reject(error);
   }
