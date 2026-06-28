@@ -38,8 +38,13 @@ Phase 5 adds thin graph API routes to the Vite dev server. To use persisted
 data locally:
 
 1. Create a Postgres database.
-2. Apply `db/schema.sql`.
-3. Copy `.env.example` to `.env.local` and set `DATABASE_URL`.
+2. Copy `.env.example` to `.env.local` and set `DATABASE_URL`.
+3. Apply the schema:
+
+   ```bash
+   DATABASE_URL="postgres://user:password@localhost:5432/product_knowledge_graph" npm run db:schema
+   ```
+
 4. Run `npm run dev`.
 
 Local development can use an anonymous httpOnly browser cookie to separate
@@ -52,6 +57,18 @@ Clearing browser cookies creates a new anonymous workspace.
 The hosted alpha expects graph API routes to run server-side. On Vercel, set
 `DATABASE_URL` as an environment variable and apply `db/schema.sql` to that
 database before using the app.
+
+Any Postgres-compatible provider should work, including Vercel Postgres,
+Neon or Supabase. Provision the database, copy its pooled connection string,
+and set it as `DATABASE_URL` in the Vercel project environment variables for
+the deployed environment.
+
+Apply the schema to the deployed database from a local shell that has the same
+connection string:
+
+```bash
+DATABASE_URL="postgres://..." npm run db:schema
+```
 
 For hosted alpha testing, enable minimal alpha authentication:
 
